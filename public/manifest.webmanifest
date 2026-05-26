@@ -2,26 +2,26 @@
   "name": "FitLog 健身记录",
   "short_name": "FitLog",
   "description": "记录训练、组数、消耗和每日照片的 iPhone PWA。",
-  "start_url": "/",
+  "start_url": "/training_pwa/",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#f8fafc",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/icon-180.png",
+      "src": "/training_pwa/icons/icon-180.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/training_pwa/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon.svg",
+      "src": "/training_pwa/icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
