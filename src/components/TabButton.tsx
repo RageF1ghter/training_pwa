@@ -16,7 +16,7 @@ export function TabButton({
       type="button"
       onClick={onClick}
       className={`flex min-h-[54px] flex-col items-center justify-center gap-1 text-xs font-semibold ${
-        active ? "text-ocean" : "text-slate-500"
+        active ? "text-ocean" : "text-ink/50"
       }`}
       aria-label={label}
       title={label}

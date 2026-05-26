@@ -255,14 +255,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-mist text-ink">
-      <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col bg-[#fbfcfe] shadow-lift">
-        <header className="safe-top border-b border-line bg-[#fbfcfe]/95 px-5 pb-4">
+      <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col bg-surface shadow-lift">
+        <header className="safe-top border-b border-line bg-surface/95 px-5 pb-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-ocean">FitLog</p>
               <h1 className="mt-1 text-2xl font-bold tracking-normal">训练记录</h1>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-[8px] bg-ink text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[8px] bg-ocean text-mist">
               <Dumbbell size={24} aria-hidden="true" />
             </div>
           </div>
@@ -332,7 +332,7 @@ export default function App() {
           )}
         </main>
 
-        <nav className="safe-bottom fixed bottom-0 left-1/2 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-3 border-t border-line bg-white/95 px-5 pt-2 backdrop-blur">
+        <nav className="safe-bottom fixed bottom-0 left-1/2 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-3 border-t border-line bg-surface/95 px-5 pt-2 backdrop-blur">
           <TabButton icon={<Activity size={21} />} label="记录" active={tab === "record"} onClick={() => setTab("record")} />
           <TabButton icon={<CalendarDays size={21} />} label="日历" active={tab === "calendar"} onClick={() => setTab("calendar")} />
           <TabButton icon={<Camera size={21} />} label="照片" active={tab === "photos"} onClick={() => setTab("photos")} />

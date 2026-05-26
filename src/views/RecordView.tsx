@@ -200,13 +200,13 @@ export function RecordView({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold">训练记录</h2>
-          <p className="mt-1 text-sm text-slate-500">{formatDateLabel(draftWorkout.date)}</p>
+          <p className="mt-1 text-sm text-ink/50">{formatDateLabel(draftWorkout.date)}</p>
         </div>
         <button
           type="button"
           onClick={onSave}
           disabled={!canSave}
-          className="flex h-11 w-11 items-center justify-center rounded-[8px] bg-coral text-white disabled:bg-slate-300"
+          className="flex h-11 w-11 items-center justify-center rounded-[8px] bg-coral text-white disabled:bg-ink/15"
           aria-label="保存训练"
           title="保存训练"
         >
@@ -220,7 +220,7 @@ export function RecordView({
         <SummaryTile label="次数" value={countWorkoutReps(draftWorkout)} />
       </div>
 
-      <div className="space-y-4 rounded-[8px] border border-line bg-white p-4">
+      <div className="space-y-4 rounded-[8px] border border-line bg-surface p-4">
         <label className="block">
           <span className="text-sm font-semibold">日期</span>
           <input
@@ -284,7 +284,7 @@ export function RecordView({
               <button
                 type="button"
                 onClick={startCustomExercise}
-                className="flex min-h-[42px] items-center justify-center gap-2 rounded-[8px] border border-dashed border-line bg-white px-3 py-2 text-sm font-semibold text-slate-600"
+                className="flex min-h-[42px] items-center justify-center gap-2 rounded-[8px] border border-dashed border-line bg-surface px-3 py-2 text-sm font-semibold text-ink/60"
                 aria-label="添加自定义动作"
                 title="添加自定义动作"
               >
@@ -297,18 +297,18 @@ export function RecordView({
           <dialog
             ref={deleteDialogRef}
             onClose={() => setDeleteTarget(null)}
-            className="w-[min(340px,calc(100vw-40px))] rounded-[8px] border border-line bg-white p-0 text-ink shadow-lift backdrop:bg-ink/35"
+            className="w-[min(340px,calc(100vw-40px))] rounded-[8px] border border-line bg-surface p-0 text-ink shadow-lift backdrop:bg-ink/35"
           >
             <div className="p-5">
               <h3 className="text-lg font-bold">删除动作项目</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+              <p className="mt-2 text-sm leading-6 text-ink/60">
                 确定删除「{deleteTarget}」吗？已保存的训练记录不会被修改。
               </p>
               <div className="mt-5 grid grid-cols-2 gap-2">
                 <button type="button" onClick={deleteExercise} className="h-11 rounded-[8px] bg-coral px-3 text-sm font-semibold text-white">
                   删除
                 </button>
-                <button type="button" onClick={() => setDeleteTarget(null)} className="h-11 rounded-[8px] bg-mist px-3 text-sm font-semibold text-slate-600">
+                <button type="button" onClick={() => setDeleteTarget(null)} className="h-11 rounded-[8px] bg-mist px-3 text-sm font-semibold text-ink/60">
                   取消
                 </button>
               </div>
@@ -339,7 +339,7 @@ export function RecordView({
                 type="button"
                 onClick={addCustomExercise}
                 disabled={!canAddCustomExercise}
-                className="flex h-12 items-center justify-center gap-1 rounded-[8px] bg-ocean px-2 text-sm font-semibold text-white disabled:bg-slate-300"
+                className="flex h-12 items-center justify-center gap-1 rounded-[8px] bg-ocean px-2 text-sm font-semibold text-white disabled:bg-ink/15"
               >
                 <Plus size={16} aria-hidden="true" />
                 添加
@@ -353,11 +353,11 @@ export function RecordView({
         </div>
       </div>
 
-      <div className="space-y-4 rounded-[8px] border border-line bg-white p-4">
+      <div className="space-y-4 rounded-[8px] border border-line bg-surface p-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold">当前组</h3>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-ink/50">
               {selectedBodyPart} · {selectedExercise || "未选择动作"}
             </p>
           </div>
@@ -376,7 +376,7 @@ export function RecordView({
                 onChange={(event) => onSetWeightChange(Number(event.target.value))}
                 className="min-w-0 flex-1 bg-transparent text-base outline-none"
               />
-              <span className="text-sm text-slate-500">kg</span>
+              <span className="text-sm text-ink/50">kg</span>
             </div>
           </label>
           <label className="block">
@@ -397,7 +397,7 @@ export function RecordView({
             type="button"
             onClick={onStartSetTimer}
             disabled={timerStartedAt !== null || !selectedExercise}
-            className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-ocean px-3 text-sm font-semibold text-white disabled:bg-slate-300"
+            className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-ocean px-3 text-sm font-semibold text-white disabled:bg-ink/15"
           >
             <Play size={17} aria-hidden="true" />
             开始
@@ -406,7 +406,7 @@ export function RecordView({
             type="button"
             onClick={onFinishSetTimer}
             disabled={timerStartedAt === null}
-            className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-ink px-3 text-sm font-semibold text-white disabled:bg-slate-300"
+            className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-ocean px-3 text-sm font-semibold text-mist disabled:bg-ink/15"
           >
             <Square size={16} aria-hidden="true" />
             完成
@@ -414,7 +414,7 @@ export function RecordView({
           <button
             type="button"
             onClick={onResetCurrentSet}
-            className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-mist px-3 text-sm font-semibold text-slate-600"
+            className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-mist px-3 text-sm font-semibold text-ink/60"
           >
             <RotateCcw size={16} aria-hidden="true" />
             重置
@@ -425,7 +425,7 @@ export function RecordView({
           type="button"
           onClick={addSet}
           disabled={!canAddSet}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-[8px] bg-coral px-3 text-sm font-semibold text-white disabled:bg-slate-300"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-[8px] bg-coral px-3 text-sm font-semibold text-white disabled:bg-ink/15"
         >
           <Plus size={17} aria-hidden="true" />
           添加本组
@@ -434,7 +434,7 @@ export function RecordView({
 
       <DraftWorkoutSummary workout={draftWorkout} onDeleteSet={onDeleteDraftSet} />
 
-      <div className="space-y-4 rounded-[8px] border border-line bg-white p-4">
+      <div className="space-y-4 rounded-[8px] border border-line bg-surface p-4">
         <label className="block">
           <span className="text-sm font-semibold">整次训练消耗</span>
           <div className="mt-2 flex items-center gap-2 rounded-[8px] border border-line bg-mist px-3">
@@ -448,7 +448,7 @@ export function RecordView({
               className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none"
               aria-label="整次训练消耗"
             />
-            <span className="text-sm text-slate-500">kcal</span>
+            <span className="text-sm text-ink/50">kcal</span>
           </div>
         </label>
         <label className="block">
@@ -469,8 +469,8 @@ export function RecordView({
 
 function SummaryTile({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[8px] border border-line bg-white px-3 py-2">
-      <p className="text-xs text-slate-500">{label}</p>
+    <div className="rounded-[8px] border border-line bg-surface px-3 py-2">
+      <p className="text-xs text-ink/50">{label}</p>
       <p className="mt-1 text-lg font-bold">{value}</p>
     </div>
   );
@@ -479,8 +479,8 @@ function SummaryTile({ label, value }: { label: string; value: number }) {
 function DraftWorkoutSummary({ workout, onDeleteSet }: { workout: Workout; onDeleteSet: (exerciseId: string, setId: string) => void }) {
   if (workout.exercises.length === 0) {
     return (
-      <div className="rounded-[8px] border border-dashed border-line bg-white px-4 py-8 text-center">
-        <p className="text-sm font-semibold text-slate-500">当前训练还没有添加组</p>
+      <div className="rounded-[8px] border border-dashed border-line bg-surface px-4 py-8 text-center">
+        <p className="text-sm font-semibold text-ink/50">当前训练还没有添加组</p>
       </div>
     );
   }
@@ -488,7 +488,7 @@ function DraftWorkoutSummary({ workout, onDeleteSet }: { workout: Workout; onDel
   return (
     <div className="space-y-3">
       {workout.exercises.map((exercise) => (
-        <article key={exercise.id} className="rounded-[8px] border border-line bg-white p-4">
+        <article key={exercise.id} className="rounded-[8px] border border-line bg-surface p-4">
           <div>
             <p className="text-sm font-semibold text-ocean">{exercise.bodyPart}</p>
             <h3 className="mt-1 text-lg font-bold">{exercise.exercise}</h3>
@@ -496,7 +496,7 @@ function DraftWorkoutSummary({ workout, onDeleteSet }: { workout: Workout; onDel
           <div className="mt-3 space-y-2">
             {exercise.sets.map((set, index) => (
               <div key={set.id} className="grid grid-cols-[1fr_38px] items-center gap-2 rounded-[8px] bg-mist px-3 py-2">
-                <span className="text-sm font-semibold text-slate-600">
+                <span className="text-sm font-semibold text-ink/60">
                   {index + 1}组 · {set.weight}kg · {set.reps}次 · {formatDuration(set.durationSeconds)}
                 </span>
                 <button

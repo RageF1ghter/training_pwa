@@ -61,15 +61,15 @@ export function CalendarView({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold">训练日历</h2>
-          <p className="mt-1 text-sm text-slate-500">{formatMonthTitle(cursorDate)}</p>
+          <p className="mt-1 text-sm text-ink/50">{formatMonthTitle(cursorDate)}</p>
         </div>
-        <div className="grid grid-cols-2 rounded-[8px] border border-line bg-white p-1">
+        <div className="grid grid-cols-2 rounded-[8px] border border-line bg-surface p-1">
           {(["week", "month"] as CalendarMode[]).map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => onModeChange(item)}
-              className={`h-9 rounded-[6px] px-3 text-sm font-semibold ${mode === item ? "bg-ink text-white" : "text-slate-500"}`}
+              className={`h-9 rounded-[6px] px-3 text-sm font-semibold ${mode === item ? "bg-ocean text-mist" : "text-ink/50"}`}
             >
               {item === "week" ? "周" : "月"}
             </button>
@@ -82,7 +82,7 @@ export function CalendarView({
         <Stat label="周期千卡" value={periodCalories} />
       </div>
 
-      <div className="rounded-[8px] border border-line bg-white p-4">
+      <div className="rounded-[8px] border border-line bg-surface p-4">
         <div className="mb-3 flex items-center justify-between">
           <button
             type="button"
@@ -114,7 +114,7 @@ export function CalendarView({
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-500">
+        <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-ink/50">
           {weekdayLabels.map((label) => (
             <span key={label} className="py-2">
               {label}
@@ -139,13 +139,13 @@ export function CalendarView({
                     ? "border-ocean bg-ocean text-white"
                     : inMonth || mode === "week"
                       ? "border-line bg-mist"
-                      : "border-transparent bg-transparent text-slate-300"
+                      : "border-transparent bg-transparent text-ink/20"
                 }`}
                 aria-label={`${key} 训练 ${dayWorkouts.length} 次`}
               >
                 <span className="text-sm font-bold">{day.getDate()}</span>
                 <div className="mt-1 flex min-h-[14px] gap-1">
-                  {dayWorkouts.length > 0 && <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-white" : "bg-coral"}`} />}
+                  {dayWorkouts.length > 0 && <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-surface" : "bg-coral"}`} />}
                   {dayPhotos.length > 0 && <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-citrus" : "bg-ocean"}`} />}
                 </div>
               </button>

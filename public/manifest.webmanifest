@@ -4,8 +4,8 @@
   "description": "记录训练、组数、消耗和每日照片的 iPhone PWA。",
   "start_url": "/training_pwa/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#f8fafc",
+  "background_color": "#0D0D0D",
+  "theme_color": "#0D0D0D",
   "orientation": "portrait",
   "icons": [
     {
