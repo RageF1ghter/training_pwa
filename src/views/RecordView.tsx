@@ -51,8 +51,8 @@ export function RecordView({
   draftWorkout: Workout;
   selectedBodyPart: BodyPart;
   selectedExercise: string;
-  setWeight: number;
-  setReps: number;
+  setWeight: string;
+  setReps: string;
   elapsedSeconds: number;
   timerStartedAt: number | null;
   selectedDate: string;
@@ -63,8 +63,8 @@ export function RecordView({
   onDraftWorkoutChange: Dispatch<SetStateAction<Workout>>;
   onSelectedBodyPartChange: (bodyPart: BodyPart) => void;
   onSelectedExerciseChange: (exercise: string) => void;
-  onSetWeightChange: (weight: number) => void;
-  onSetRepsChange: (reps: number) => void;
+  onSetWeightChange: (weight: string) => void;
+  onSetRepsChange: (reps: string) => void;
   onStartSetTimer: () => void;
   onFinishSetTimer: () => void;
   onResetCurrentSet: () => void;
@@ -86,7 +86,7 @@ export function RecordView({
   const [activeDragExercise, setActiveDragExercise] = useState<string | null>(null);
   const customExerciseName = customExerciseDraft.trim();
   const canAddCustomExercise = customExerciseName.length > 0 && !knownExercises.includes(customExerciseName);
-  const canAddSet = selectedExercise.trim().length > 0 && elapsedSeconds > 0 && setReps > 0 && timerStartedAt === null;
+  const canAddSet = selectedExercise.trim().length > 0 && elapsedSeconds > 0 && Number(setReps) > 0 && timerStartedAt === null;
   const canSave = countWorkoutSets(draftWorkout) > 0;
   const customInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
@@ -369,11 +369,16 @@ export function RecordView({
             <span className="text-sm font-semibold">重量</span>
             <div className="mt-2 flex h-12 items-center rounded-[8px] border border-line bg-mist px-3">
               <input
-                type="number"
-                min="0"
+                type="text"
                 inputMode="decimal"
+                pattern="[0-9]*\.?[0-9]*"
+                placeholder="0"
                 value={setWeight}
-                onChange={(event) => onSetWeightChange(Number(event.target.value))}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  const cleaned = raw.replace(/[^0-9.]/g, "");
+                  onSetWeightChange(cleaned);
+                }}
                 className="min-w-0 flex-1 bg-transparent text-base outline-none"
               />
               <span className="text-sm text-ink/50">kg</span>
@@ -382,11 +387,16 @@ export function RecordView({
           <label className="block">
             <span className="text-sm font-semibold">次数</span>
             <input
-              type="number"
-              min="0"
+              type="text"
               inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="0"
               value={setReps}
-              onChange={(event) => onSetRepsChange(Number(event.target.value))}
+              onChange={(event) => {
+                const raw = event.target.value;
+                const cleaned = raw.replace(/[^0-9]/g, "");
+                onSetRepsChange(cleaned);
+              }}
               className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
             />
           </label>

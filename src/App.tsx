@@ -35,8 +35,8 @@ export default function App() {
   const [draftWorkout, setDraftWorkout] = useState<Workout>(() => createBlankWorkout());
   const [selectedBodyPart, setSelectedBodyPart] = useState<BodyPart>("胸部");
   const [selectedExercise, setSelectedExercise] = useState(() => exercisePresets["胸部"][0]);
-  const [setWeight, setSetWeight] = useState(0);
-  const [setReps, setSetReps] = useState(10);
+  const [setWeight, setSetWeight] = useState("");
+  const [setReps, setSetReps] = useState("10");
   const [timerStartedAt, setTimerStartedAt] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [selectedDate, setSelectedDate] = useState(todayKey());
@@ -136,7 +136,7 @@ export default function App() {
 
   const addSetToDraftWorkout = () => {
     const exerciseName = selectedExercise.trim();
-    if (!exerciseName || elapsedSeconds <= 0 || setReps <= 0) return;
+    if (!exerciseName || elapsedSeconds <= 0 || Number(setReps) <= 0) return;
 
     setDraftWorkout((current) => {
       const nextSet = {
@@ -171,7 +171,7 @@ export default function App() {
         ],
       };
     });
-    setSetReps(10);
+    setSetReps("10");
     resetCurrentSet();
   };
 
