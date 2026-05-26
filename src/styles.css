@@ -49,3 +49,13 @@ button {
 .safe-bottom {
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
+
+.date-input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+  padding: 0;
+  margin: 0;
+}
