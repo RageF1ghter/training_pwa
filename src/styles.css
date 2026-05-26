@@ -51,11 +51,25 @@ button {
 }
 
 .date-input {
+  display: block;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.date-input::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+
+.date-input::-webkit-datetime-edit {
+  min-width: 0;
 }
 
 .date-input::-webkit-calendar-picker-indicator {
   padding: 0;
   margin: 0;
+  flex-shrink: 0;
 }
