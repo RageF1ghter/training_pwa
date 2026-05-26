@@ -259,7 +259,9 @@ export default function App() {
         <header className="safe-top border-b border-line bg-surface/95 px-5 pb-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-ocean">FitLog</p>
+              <p className="text-sm font-semibold text-ocean">
+                FitLog <span className="font-normal text-ink/40">v{__APP_VERSION__}</span>
+              </p>
               <h1 className="mt-1 text-2xl font-bold tracking-normal">训练记录</h1>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-[8px] bg-ocean text-mist">
