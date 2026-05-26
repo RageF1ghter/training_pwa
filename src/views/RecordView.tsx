@@ -227,7 +227,7 @@ export function RecordView({
             type="date"
             value={draftWorkout.date}
             onChange={(event) => onDateChange(event.target.value)}
-            className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
+            className="mt-2 h-12 w-full min-w-0 rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
           />
         </label>
 

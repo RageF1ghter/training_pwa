@@ -46,7 +46,7 @@ export function PhotoView({
           type="date"
           value={selectedDate}
           onChange={(event) => onDateChange(event.target.value)}
-          className="mt-2 h-12 w-full rounded-[8px] border border-line bg-white px-3 text-base outline-none focus:border-ocean"
+          className="mt-2 h-12 w-full min-w-0 rounded-[8px] border border-line bg-white px-3 text-base outline-none focus:border-ocean"
         />
       </label>
 
