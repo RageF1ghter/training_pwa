@@ -46,11 +46,11 @@ export function PhotoView({
           type="date"
           value={selectedDate}
           onChange={(event) => onDateChange(event.target.value)}
-          className="mt-2 h-12 w-full rounded-[8px] border border-line bg-surface px-3 text-base outline-none focus:border-ocean date-input"
+          className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean date-input"
         />
       </label>
 
-      <div className="rounded-[8px] border border-line bg-surface p-4">
+      <div className="rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold">当天训练</span>
           <span className="text-sm text-ink/50">{workouts.length} 次</span>
@@ -66,19 +66,19 @@ export function PhotoView({
       </div>
 
       {photos.length === 0 ? (
-        <div className="rounded-[8px] border border-dashed border-line bg-surface px-4 py-10 text-center">
+        <div className="rounded-[8px] border border-dashed border-line bg-glass backdrop-blur-md px-4 py-10 text-center">
           <Camera className="mx-auto text-ink/30" size={30} aria-hidden="true" />
           <p className="mt-3 text-sm font-semibold text-ink/50">这一天还没有照片</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {photos.map((photo) => (
-            <figure key={photo.id} className="relative overflow-hidden rounded-[8px] border border-line bg-surface">
+            <figure key={photo.id} className="relative overflow-hidden rounded-[8px] border border-line bg-glass backdrop-blur-md">
               <img src={photo.dataUrl} alt={`${photo.date} 训练照片`} className="aspect-[4/5] w-full object-cover" />
               <button
                 type="button"
                 onClick={() => onDeletePhoto(photo.id)}
-                className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-[8px] bg-surface/90 text-coral"
+                className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-[8px] glass-strong text-coral"
                 aria-label="删除照片"
                 title="删除照片"
               >

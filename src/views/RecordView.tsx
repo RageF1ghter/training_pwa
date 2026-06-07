@@ -229,7 +229,7 @@ export function RecordView({
         <SummaryTile label="次数" value={countWorkoutReps(draftWorkout)} />
       </div>
 
-      <div className="space-y-4 rounded-[8px] border border-line bg-surface p-4">
+      <div className="space-y-4 rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
         <label className="block">
           <span className="text-sm font-semibold">日期</span>
           <input
@@ -306,7 +306,7 @@ export function RecordView({
           <dialog
             ref={deleteDialogRef}
             onClose={() => setDeleteTarget(null)}
-            className="w-[min(340px,calc(100vw-40px))] rounded-[8px] border border-line bg-surface p-0 text-ink shadow-lift backdrop:bg-ink/35"
+            className="w-[min(340px,calc(100vw-40px))] rounded-[8px] border border-line bg-glass backdrop-blur-xl p-0 text-ink shadow-glass backdrop:bg-ink/35"
           >
             <div className="p-5">
               <h3 className="text-lg font-bold">删除动作项目</h3>
@@ -362,7 +362,7 @@ export function RecordView({
         </div>
       </div>
 
-      <div className="space-y-4 rounded-[8px] border border-line bg-surface p-4">
+      <div className="space-y-4 rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
         {isResting ? (
           <>
             <div className="flex items-center justify-between">
@@ -517,7 +517,7 @@ export function RecordView({
 
       <DraftWorkoutSummary workout={draftWorkout} onDeleteSet={onDeleteDraftSet} onUpdateSet={onUpdateDraftSet} />
 
-      <div className="space-y-4 rounded-[8px] border border-line bg-surface p-4">
+      <div className="space-y-4 rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
         <label className="block">
           <span className="text-sm font-semibold">整次训练消耗</span>
           <div className="mt-2 flex items-center gap-2 rounded-[8px] border border-line bg-mist px-3">
@@ -552,7 +552,7 @@ export function RecordView({
 
 function SummaryTile({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[8px] border border-line bg-surface px-3 py-2">
+    <div className="rounded-[8px] border border-line bg-glass backdrop-blur-md px-3 py-2">
       <p className="text-xs text-ink/50">{label}</p>
       <p className="mt-1 text-lg font-bold">{value}</p>
     </div>
@@ -595,7 +595,7 @@ function DraftWorkoutSummary({
 
   if (workout.exercises.length === 0) {
     return (
-      <div className="rounded-[8px] border border-dashed border-line bg-surface px-4 py-8 text-center">
+      <div className="rounded-[8px] border border-dashed border-line bg-glass backdrop-blur-md px-4 py-8 text-center">
         <p className="text-sm font-semibold text-ink/50">当前训练还没有添加组</p>
       </div>
     );
@@ -604,7 +604,7 @@ function DraftWorkoutSummary({
   return (
     <div className="space-y-3">
       {workout.exercises.map((exercise) => (
-        <article key={exercise.id} className="rounded-[8px] border border-line bg-surface p-4">
+        <article key={exercise.id} className="rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
           <div>
             <p className="text-sm font-semibold text-ocean">{exercise.bodyPart}</p>
             <h3 className="mt-1 text-lg font-bold">{exercise.exercise}</h3>
@@ -624,7 +624,7 @@ function DraftWorkoutSummary({
                         <select
                           value={editWeightRaw}
                           onChange={(e) => setEditWeightRaw(e.target.value)}
-                          className="mt-1 h-11 w-full rounded-[8px] border border-line bg-surface px-3 text-base outline-none"
+                          className="mt-1 h-11 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none"
                           aria-label="重量"
                         >
                           <option value="">0 kg</option>
@@ -640,7 +640,7 @@ function DraftWorkoutSummary({
                         <select
                           value={editRepsRaw}
                           onChange={(e) => setEditRepsRaw(e.target.value)}
-                          className="mt-1 h-11 w-full rounded-[8px] border border-line bg-surface px-3 text-base outline-none"
+                          className="mt-1 h-11 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none"
                           aria-label="次数"
                         >
                           <option value="">0 次</option>
@@ -654,7 +654,7 @@ function DraftWorkoutSummary({
                     </div>
                     <label className="block">
                       <span className="text-xs text-ink/50">持续时间（秒）</span>
-                      <div className="mt-1 flex items-center gap-1 rounded-[8px] border border-line bg-surface px-3">
+                      <div className="mt-1 flex items-center gap-1 rounded-[8px] border border-line bg-mist px-3">
                         <input
                           type="text"
                           inputMode="numeric"

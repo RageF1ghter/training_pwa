@@ -63,7 +63,7 @@ export function CalendarView({
           <h2 className="text-xl font-bold">训练日历</h2>
           <p className="mt-1 text-sm text-ink/50">{formatMonthTitle(cursorDate)}</p>
         </div>
-        <div className="grid grid-cols-2 rounded-[8px] border border-line bg-surface p-1">
+        <div className="grid grid-cols-2 rounded-[8px] border border-line bg-glass backdrop-blur-md p-1">
           {(["week", "month"] as CalendarMode[]).map((item) => (
             <button
               key={item}
@@ -82,7 +82,7 @@ export function CalendarView({
         <Stat label="周期千卡" value={periodCalories} />
       </div>
 
-      <div className="rounded-[8px] border border-line bg-surface p-4">
+      <div className="rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
         <div className="mb-3 flex items-center justify-between">
           <button
             type="button"
@@ -145,7 +145,7 @@ export function CalendarView({
               >
                 <span className="text-sm font-bold">{day.getDate()}</span>
                 <div className="mt-1 flex min-h-[14px] gap-1">
-                  {dayWorkouts.length > 0 && <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-surface" : "bg-coral"}`} />}
+                  {dayWorkouts.length > 0 && <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-mist" : "bg-coral"}`} />}
                   {dayPhotos.length > 0 && <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-citrus" : "bg-ocean"}`} />}
                 </div>
               </button>

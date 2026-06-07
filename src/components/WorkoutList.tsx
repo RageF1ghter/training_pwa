@@ -15,7 +15,7 @@ export function WorkoutList({
 }) {
   if (!workouts.length) {
     return (
-      <div className="rounded-[8px] border border-dashed border-line bg-surface px-4 py-8 text-center">
+      <div className="rounded-[8px] border border-dashed border-line bg-glass backdrop-blur-md px-4 py-8 text-center">
         <Activity className="mx-auto text-ink/30" size={28} aria-hidden="true" />
         <p className="mt-3 text-sm font-semibold text-ink/50">{emptyText}</p>
       </div>
@@ -25,7 +25,7 @@ export function WorkoutList({
   return (
     <div className="space-y-3">
       {workouts.map((workout) => (
-        <article key={workout.id} className="rounded-[8px] border border-line bg-surface p-4">
+        <article key={workout.id} className="rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-ocean">{workout.exercises.length} 个动作</p>
@@ -56,7 +56,7 @@ export function WorkoutList({
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {exercise.sets.map((set, index) => (
-                    <span key={set.id} className="rounded-[8px] bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink/60">
+                    <span key={set.id} className="rounded-[8px] bg-glass backdrop-blur-sm px-2.5 py-1.5 text-xs font-semibold text-ink/60">
                       {index + 1}组 {set.weight}kg {set.reps}次 {formatDuration(set.durationSeconds)}
                     </span>
                   ))}
