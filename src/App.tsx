@@ -1,4 +1,4 @@
-import { Activity, CalendarDays, Camera, Dumbbell } from "lucide-react";
+import { Activity, CalendarDays, Camera, Moon, Sun } from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Stat } from "./components/Stat";
 import { TabButton } from "./components/TabButton";
@@ -46,6 +46,20 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("record");
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("week");
   const [cursorDate, setCursorDate] = useState(() => new Date());
+  const [isLightTheme, setIsLightTheme] = useState(() => {
+    try {
+      return localStorage.getItem("fitlog.theme") === "light";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("fitlog.theme", isLightTheme ? "light" : "dark");
+    } catch { /* noop */ }
+    document.documentElement.classList.toggle("light", isLightTheme);
+  }, [isLightTheme]);
 
   useEffect(() => {
     writeWorkouts(workouts);
@@ -299,18 +313,24 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-mist text-ink">
-      <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col bg-glass backdrop-blur-xl shadow-glass">
+      <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col bg-glass backdrop-blur-xl shadow-glass pb-24">
         <header className="safe-top border-b border-line glass-strong px-5 pb-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-ocean">
                 FitLog <span className="font-normal text-ink/40">v{__APP_VERSION__}</span>
               </p>
-              <h1 className="mt-1 text-2xl font-bold tracking-normal">训练记录</h1>
+              <h1 className="mt-1 text-3xl font-bold tracking-normal">训练记录</h1>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-[8px] bg-ocean text-mist">
-              <Dumbbell size={24} aria-hidden="true" />
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsLightTheme((prev) => !prev)}
+              className="flex h-12 w-12 items-center justify-center rounded-[8px] bg-ocean text-mist"
+              aria-label={isLightTheme ? "切换到深色主题" : "切换到浅色主题"}
+              title={isLightTheme ? "切换到深色主题" : "切换到浅色主题"}
+            >
+              {isLightTheme ? <Moon size={22} aria-hidden="true" /> : <Sun size={22} aria-hidden="true" />}
+            </button>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">
             <Stat label="训练" value={workouts.length} />
@@ -319,7 +339,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-5 pb-24 pt-5">
+        <main className="flex-1 overflow-y-auto px-5 pt-5">
           {tab === "record" && (
             <RecordView
               draftWorkout={draftWorkout}
@@ -380,13 +400,13 @@ export default function App() {
             />
           )}
         </main>
-
-        <nav className="safe-bottom fixed bottom-0 left-1/2 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-3 border-t border-line glass-strong px-5 pt-2">
-          <TabButton icon={<Activity size={21} />} label="记录" active={tab === "record"} onClick={() => setTab("record")} />
-          <TabButton icon={<CalendarDays size={21} />} label="日历" active={tab === "calendar"} onClick={() => setTab("calendar")} />
-          <TabButton icon={<Camera size={21} />} label="照片" active={tab === "photos"} onClick={() => setTab("photos")} />
-        </nav>
       </div>
+
+      <nav className="safe-bottom fixed bottom-0 left-1/2 z-50 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-3 border-t border-line glass-strong px-5 pt-2">
+        <TabButton icon={<Activity size={21} />} label="记录" active={tab === "record"} onClick={() => setTab("record")} />
+        <TabButton icon={<CalendarDays size={21} />} label="日历" active={tab === "calendar"} onClick={() => setTab("calendar")} />
+        <TabButton icon={<Camera size={21} />} label="照片" active={tab === "photos"} onClick={() => setTab("photos")} />
+      </nav>
     </div>
   );
 }
