@@ -8,13 +8,15 @@ export type ExerciseOrderMap = Record<BodyPart, string[]>;
 
 export type CalendarMode = "week" | "month";
 
-export type Tab = "record" | "calendar" | "photos";
+export type Tab = "record" | "calendar" | "photos" | "settings";
 
 export type WorkoutSet = {
   id: string;
   weight: number;
   reps: number;
   durationSeconds: number;
+  startedAt?: number;
+  finishedAt?: number;
 };
 
 export type WorkoutExercise = {
@@ -31,6 +33,7 @@ export type Workout = {
   calories: number;
   notes: string;
   createdAt: string;
+  startedAt?: number;
 };
 
 export type DayPhoto = {

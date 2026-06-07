@@ -1,7 +1,18 @@
 const BASE = new URL(".", self.location.href).pathname;
-const CACHE_NAME = "fitlog-pwa-v2";
+const CACHE_NAME = "fitlog-pwa-v3";
 
-const PRE_CACHE = [BASE, `${BASE}index.html`, `${BASE}manifest.webmanifest`, `${BASE}icons/icon.svg`];
+const PRE_CACHE = [BASE, `${BASE}index.html`, `${BASE}manifest.webmanifest`, `${BASE}icons/icon-180.png`, `${BASE}icons/icon-512.png`];
+
+function isDevServerRequest(request) {
+  const url = new URL(request.url);
+  return (
+    url.hostname === "localhost" ||
+    url.hostname === "127.0.0.1" ||
+    url.pathname.includes("/@vite/") ||
+    url.pathname.includes("/node_modules/.vite/") ||
+    url.pathname.includes("/src/")
+  );
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -19,6 +30,11 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  if (isDevServerRequest(event.request)) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   if (event.request.mode === "navigate") {
     event.respondWith(

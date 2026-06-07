@@ -33,6 +33,7 @@ function normalizeWorkout(value: unknown): Workout | null {
       calories,
       notes,
       createdAt,
+      startedAt: typeof raw.startedAt === "number" ? raw.startedAt : undefined,
     };
   }
 
@@ -51,6 +52,7 @@ function normalizeWorkout(value: unknown): Workout | null {
       calories,
       notes,
       createdAt,
+      startedAt: typeof raw.startedAt === "number" ? raw.startedAt : undefined,
     };
   }
 
@@ -79,5 +81,7 @@ function normalizeWorkoutSet(value: unknown): Workout["exercises"][number]["sets
     weight: Math.max(0, Number(raw.weight) || 0),
     reps: Math.max(0, Number(raw.reps) || 0),
     durationSeconds: Math.max(0, Number(raw.durationSeconds) || 0),
+    startedAt: typeof raw.startedAt === "number" ? raw.startedAt : undefined,
+    finishedAt: typeof raw.finishedAt === "number" ? raw.finishedAt : undefined,
   };
 }

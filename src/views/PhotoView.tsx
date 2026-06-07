@@ -93,8 +93,8 @@ export function PhotoView({
 }
 
 function formatWorkoutTag(workout: Workout) {
-  const names = workout.exercises.map((exercise) => exercise.exercise);
-  if (names.length === 0) return "空训练";
-  if (names.length <= 2) return names.join(" · ");
-  return `${names.slice(0, 2).join(" · ")} 等`;
+  const parts = [...new Set(workout.exercises.map((e) => e.bodyPart))];
+  if (parts.length === 0) return "空训练";
+  if (parts.length <= 2) return parts.join(" · ");
+  return `${parts.slice(0, 2).join(" · ")} 等`;
 }

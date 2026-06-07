@@ -1,5 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ExerciseLineChart } from "../components/ExerciseLineChart";
+import { ExercisePieChart } from "../components/ExercisePieChart";
 import { Stat } from "../components/Stat";
 import { WorkoutList } from "../components/WorkoutList";
 import type { CalendarMode, DayPhoto, Workout } from "../types";
@@ -13,7 +15,7 @@ import {
   todayKey,
   weekdayLabels,
 } from "../utils/date";
-import { sumCalories, sumSets } from "../utils/workouts";
+import { aggregateExerciseReps, getExerciseSetsWithDetails, sumCalories, sumSets } from "../utils/workouts";
 
 export function CalendarView({
   mode,
@@ -48,6 +50,19 @@ export function CalendarView({
   const rangeWorkouts = days.flatMap((day) => workoutsByDate[toDateKey(day)] || []);
   const periodCalories = sumCalories(rangeWorkouts);
   const periodSets = sumSets(rangeWorkouts);
+
+  const [selectedChartExercise, setSelectedChartExercise] = useState<string | null>(null);
+  const exerciseRepsAgg = useMemo(() => aggregateExerciseReps(rangeWorkouts), [rangeWorkouts]);
+  const exerciseDetailSets = useMemo(
+    () => (selectedChartExercise ? getExerciseSetsWithDetails(rangeWorkouts, selectedChartExercise) : []),
+    [rangeWorkouts, selectedChartExercise],
+  );
+
+  useEffect(() => {
+    if (selectedChartExercise && !exerciseRepsAgg.some((e) => e.exercise === selectedChartExercise)) {
+      setSelectedChartExercise(null);
+    }
+  }, [selectedChartExercise, exerciseRepsAgg]);
 
   const moveCursor = (direction: -1 | 1) => {
     const next = new Date(cursorDate);
@@ -153,6 +168,27 @@ export function CalendarView({
           })}
         </div>
       </div>
+
+      {/* Exercise distribution chart */}
+      <div className="rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
+        <h3 className="text-base font-bold">训练分布</h3>
+        <div className="mt-3">
+          <ExercisePieChart
+            data={exerciseRepsAgg}
+            selectedExercise={selectedChartExercise}
+            onSelectExercise={setSelectedChartExercise}
+          />
+        </div>
+      </div>
+
+      {/* Stacked line chart for selected exercise */}
+      {selectedChartExercise && exerciseDetailSets.length > 0 && (
+        <ExerciseLineChart
+          exerciseName={selectedChartExercise}
+          groupedSets={exerciseDetailSets}
+          onClose={() => setSelectedChartExercise(null)}
+        />
+      )}
 
       <WorkoutList workouts={selectedWorkouts} onDeleteWorkout={() => undefined} emptyText={`${formatDateLabel(selectedDate)} 没有训练`} readonly />
     </section>

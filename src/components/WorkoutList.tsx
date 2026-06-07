@@ -28,7 +28,7 @@ export function WorkoutList({
         <article key={workout.id} className="rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-ocean">{workout.exercises.length} 个动作</p>
+              <p className="text-sm font-semibold text-ocean">{uniqueBodyParts(workout).length} 个部位</p>
               <h3 className="mt-1 truncate text-lg font-bold">{formatWorkoutTitle(workout)}</h3>
             </div>
             {!readonly && (
@@ -71,11 +71,15 @@ export function WorkoutList({
   );
 }
 
+function uniqueBodyParts(workout: Workout): string[] {
+  return [...new Set(workout.exercises.map((e) => e.bodyPart))];
+}
+
 function formatWorkoutTitle(workout: Workout) {
-  const names = workout.exercises.map((exercise) => exercise.exercise);
-  if (names.length === 0) return "空训练";
-  if (names.length <= 2) return names.join(" + ");
-  return `${names.slice(0, 2).join(" + ")} 等`;
+  const parts = uniqueBodyParts(workout);
+  if (parts.length === 0) return "空训练";
+  if (parts.length <= 2) return parts.join(" + ");
+  return `${parts.slice(0, 2).join(" + ")} 等`;
 }
 
 function MiniMetric({ label, value }: { label: string; value: number }) {

@@ -1,4 +1,5 @@
-import { Activity, CalendarDays, Camera, Moon, Sun } from "lucide-react";
+import { Activity, CalendarDays, Camera, Settings } from "lucide-react";
+import JSZip from "jszip";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Stat } from "./components/Stat";
 import { TabButton } from "./components/TabButton";
@@ -24,6 +25,8 @@ import { makeId } from "./utils/id";
 import { groupPhotosByDate, groupWorkoutsByDate, sumCalories, sumSets } from "./utils/workouts";
 import { CalendarView } from "./views/CalendarView";
 import { PhotoView } from "./views/PhotoView";
+import { SettingsView } from "./views/SettingsView";
+import type { DateInfo } from "./views/SettingsView";
 import { RecordView } from "./views/RecordView";
 
 export default function App() {
@@ -38,13 +41,21 @@ export default function App() {
   const [setWeight, setSetWeight] = useState("");
   const [setReps, setSetReps] = useState("10");
   const [timerStartedAt, setTimerStartedAt] = useState<number | null>(null);
+  const [setStartTimestamp, setSetStartTimestamp] = useState<number | null>(null);
+  const [setFinishTimestamp, setSetFinishTimestamp] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
   const [restSeconds, setRestSeconds] = useState(0);
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [tab, setTab] = useState<Tab>("record");
-  const [calendarMode, setCalendarMode] = useState<CalendarMode>("week");
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>(() => {
+    try {
+      const saved = localStorage.getItem("fitlog.calendarMode");
+      if (saved === "week" || saved === "month") return saved;
+    } catch { /* noop */ }
+    return "week";
+  });
   const [cursorDate, setCursorDate] = useState(() => new Date());
   const [isLightTheme, setIsLightTheme] = useState(() => {
     try {
@@ -60,6 +71,12 @@ export default function App() {
     } catch { /* noop */ }
     document.documentElement.classList.toggle("light", isLightTheme);
   }, [isLightTheme]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("fitlog.calendarMode", calendarMode);
+    } catch { /* noop */ }
+  }, [calendarMode]);
 
   useEffect(() => {
     writeWorkouts(workouts);
@@ -105,6 +122,23 @@ export default function App() {
 
   const workoutsByDate = useMemo(() => groupWorkoutsByDate(workouts), [workouts]);
   const photosByDate = useMemo(() => groupPhotosByDate(photos), [photos]);
+  const availableDates = useMemo((): DateInfo[] => {
+    const dateMap = new Map<string, { workoutCount: number; photoCount: number }>();
+    Object.entries(workoutsByDate).forEach(([dateKey, ws]) => {
+      dateMap.set(dateKey, { workoutCount: ws.length, photoCount: 0 });
+    });
+    Object.entries(photosByDate).forEach(([dateKey, ps]) => {
+      const entry = dateMap.get(dateKey);
+      if (entry) {
+        entry.photoCount = ps.length;
+      } else {
+        dateMap.set(dateKey, { workoutCount: 0, photoCount: ps.length });
+      }
+    });
+    return Array.from(dateMap.entries())
+      .map(([dateKey, counts]) => ({ dateKey, ...counts }))
+      .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+  }, [workoutsByDate, photosByDate]);
   const selectedWorkouts = workoutsByDate[selectedDate] || [];
   const selectedPhotos = photosByDate[selectedDate] || [];
 
@@ -139,6 +173,8 @@ export default function App() {
     setDraftWorkout(createBlankWorkout(nextWorkout.date));
     setElapsedSeconds(0);
     setTimerStartedAt(null);
+    setSetStartTimestamp(null);
+    setSetFinishTimestamp(null);
     setIsResting(false);
     setRestStartedAt(null);
     setRestSeconds(0);
@@ -154,18 +190,29 @@ export default function App() {
       setRestStartedAt(null);
       setRestSeconds(0);
     }
-    setTimerStartedAt(Date.now());
+    const now = Date.now();
+    setTimerStartedAt(now);
+    setSetStartTimestamp(now);
+    setSetFinishTimestamp(null);
     setElapsedSeconds(0);
+    setDraftWorkout((current) => {
+      if (current.startedAt) return current;
+      return { ...current, startedAt: now };
+    });
   };
 
   const finishSetTimer = () => {
     if (timerStartedAt === null) return;
-    setElapsedSeconds(Math.max(1, Math.floor((Date.now() - timerStartedAt) / 1000)));
+    const now = Date.now();
+    setElapsedSeconds(Math.max(1, Math.floor((now - timerStartedAt) / 1000)));
+    setSetFinishTimestamp(now);
     setTimerStartedAt(null);
   };
 
   const resetCurrentSet = () => {
     setTimerStartedAt(null);
+    setSetStartTimestamp(null);
+    setSetFinishTimestamp(null);
     setElapsedSeconds(0);
     setIsResting(false);
     setRestStartedAt(null);
@@ -182,6 +229,8 @@ export default function App() {
         weight: Math.max(0, Number(setWeight) || 0),
         reps: Math.max(0, Number(setReps) || 0),
         durationSeconds: Math.max(0, Number(elapsedSeconds) || 0),
+        startedAt: setStartTimestamp ?? undefined,
+        finishedAt: setFinishTimestamp ?? undefined,
       };
       const existingExercise = current.exercises.find(
         (exercise) => exercise.bodyPart === selectedBodyPart && exercise.exercise === exerciseName,
@@ -233,7 +282,7 @@ export default function App() {
               ...exercise,
               sets: exercise.sets.map((set) =>
                 set.id === setId
-                  ? { ...set, weight: updates.weight, reps: updates.reps, durationSeconds: updates.durationSeconds }
+                  ? { ...set, weight: updates.weight, reps: updates.reps, durationSeconds: updates.durationSeconds, finishedAt: set.startedAt != null ? set.startedAt + updates.durationSeconds * 1000 : set.finishedAt }
                   : set,
               ),
             }
@@ -311,26 +360,95 @@ export default function App() {
     setPhotos((items) => items.filter((item) => item.id !== id));
   };
 
+  const handleExport = async (dateKeys?: string[]) => {
+    const isPartial = dateKeys && dateKeys.length > 0;
+    const exportData = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      appVersion: __APP_VERSION__,
+      workouts: isPartial ? workouts.filter((w) => dateKeys.includes(w.date)) : workouts,
+      customExercises,
+      hiddenExercises,
+      exerciseOrder,
+      photos: isPartial ? photos.filter((p) => dateKeys.includes(p.date)) : photos,
+    };
+
+    const zip = new JSZip();
+    zip.file("data.json", JSON.stringify(exportData, null, 2));
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `fitlog-backup-${todayKey()}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (file: File): Promise<{ success: boolean; message: string }> => {
+    try {
+      let json: unknown;
+
+      if (file.name.endsWith(".zip")) {
+        const zip = await JSZip.loadAsync(file);
+        const dataFile = zip.file("data.json");
+        if (!dataFile) return { success: false, message: "无效的备份文件：未找到 data.json" };
+        json = JSON.parse(await dataFile.async("string"));
+      } else {
+        json = JSON.parse(await file.text());
+      }
+
+      const data = json as Record<string, unknown>;
+      if (typeof data.version !== "number" || !Array.isArray(data.workouts) || !Array.isArray(data.photos)) {
+        return { success: false, message: "无效的备份文件：数据格式不正确" };
+      }
+
+      const importedWorkouts = data.workouts as Workout[];
+      const importedPhotos = data.photos as DayPhoto[];
+      const importedDates = new Set([
+        ...importedWorkouts.map((w) => w.date),
+        ...importedPhotos.map((p) => p.date),
+      ]);
+
+      // Merge workouts: remove existing for imported dates, add imported
+      setWorkouts((prev) => [...prev.filter((w) => !importedDates.has(w.date)), ...importedWorkouts]);
+
+      // Replace exercise config
+      if (data.customExercises && typeof data.customExercises === "object") {
+        setCustomExercises(data.customExercises as typeof customExercises);
+      }
+      if (data.hiddenExercises && typeof data.hiddenExercises === "object") {
+        setHiddenExercises(data.hiddenExercises as typeof hiddenExercises);
+      }
+      if (data.exerciseOrder && typeof data.exerciseOrder === "object") {
+        setExerciseOrder(data.exerciseOrder as typeof exerciseOrder);
+      }
+
+      // Merge photos: remove existing for imported dates, then save imported
+      const photosToRemove = photos.filter((p) => importedDates.has(p.date));
+      await Promise.all(photosToRemove.map((p) => removePhoto(p.id)));
+      await Promise.all(importedPhotos.map((p) => savePhoto(p)));
+      setPhotos((prev) => [...prev.filter((p) => !importedDates.has(p.date)), ...importedPhotos]);
+
+      return {
+        success: true,
+        message: `导入成功！已恢复 ${importedWorkouts.length} 条训练，${importedPhotos.length} 张照片`,
+      };
+    } catch {
+      return { success: false, message: "导入失败：无法读取文件" };
+    }
+  };
+
   return (
     <div className="min-h-screen bg-mist text-ink">
       <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col bg-glass backdrop-blur-xl shadow-glass pb-24">
         <header className="safe-top border-b border-line glass-strong px-5 pb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-ocean">
-                FitLog <span className="font-normal text-ink/40">v{__APP_VERSION__}</span>
-              </p>
-              <h1 className="mt-1 text-3xl font-bold tracking-normal">训练记录</h1>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsLightTheme((prev) => !prev)}
-              className="flex h-12 w-12 items-center justify-center rounded-[8px] bg-ocean text-mist"
-              aria-label={isLightTheme ? "切换到深色主题" : "切换到浅色主题"}
-              title={isLightTheme ? "切换到深色主题" : "切换到浅色主题"}
-            >
-              {isLightTheme ? <Moon size={22} aria-hidden="true" /> : <Sun size={22} aria-hidden="true" />}
-            </button>
+          <div>
+            <p className="text-sm font-semibold text-ocean">
+              FitLog <span className="font-normal text-ink/40">v{__APP_VERSION__}</span>
+            </p>
+            <h1 className="mt-1 text-3xl font-bold tracking-normal">{calendarMode === "week" ? "本周训练记录" : "本月训练记录"}</h1>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">
             <Stat label="训练" value={workouts.length} />
@@ -399,13 +517,24 @@ export default function App() {
               onDeletePhoto={deletePhoto}
             />
           )}
+
+          {tab === "settings" && (
+            <SettingsView
+              isLightTheme={isLightTheme}
+              onThemeToggle={() => setIsLightTheme((prev) => !prev)}
+              availableDates={availableDates}
+              onExport={handleExport}
+              onImport={handleImport}
+            />
+          )}
         </main>
       </div>
 
-      <nav className="safe-bottom fixed bottom-0 left-1/2 z-50 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-3 border-t border-line glass-strong px-5 pt-2">
+      <nav className="safe-bottom fixed bottom-0 left-1/2 z-50 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-4 border-t border-line glass-strong px-5 pt-2">
         <TabButton icon={<Activity size={21} />} label="记录" active={tab === "record"} onClick={() => setTab("record")} />
         <TabButton icon={<CalendarDays size={21} />} label="日历" active={tab === "calendar"} onClick={() => setTab("calendar")} />
         <TabButton icon={<Camera size={21} />} label="照片" active={tab === "photos"} onClick={() => setTab("photos")} />
+        <TabButton icon={<Settings size={21} />} label="设置" active={tab === "settings"} onClick={() => setTab("settings")} />
       </nav>
     </div>
   );
