@@ -55,16 +55,22 @@ button {
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  line-height: 3rem;
   -webkit-appearance: none;
   appearance: none;
 }
 
 .date-input::-webkit-date-and-time-value {
+  display: flex;
+  align-items: center;
+  height: 100%;
   min-width: 0;
   text-align: left;
 }
 
 .date-input::-webkit-datetime-edit {
+  display: flex;
+  align-items: center;
   min-width: 0;
 }
 

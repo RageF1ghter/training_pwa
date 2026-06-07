@@ -10,13 +10,16 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Flame, Play, Plus, RotateCcw, Save, Square, Trash2, X } from "lucide-react";
+import { Check, Flame, Pencil, Play, Plus, RotateCcw, Save, Square, Trash2, X } from "lucide-react";
 import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from "react";
 import { WorkoutList } from "../components/WorkoutList";
 import { bodyParts, exercisePresets } from "../data/exercises";
-import type { BodyPart, CustomExerciseMap, ExerciseOrderMap, HiddenExerciseMap, Workout } from "../types";
+import type { BodyPart, CustomExerciseMap, ExerciseOrderMap, HiddenExerciseMap, Workout, WorkoutSet } from "../types";
 import { formatDateLabel } from "../utils/date";
 import { countWorkoutReps, countWorkoutSets, formatDuration } from "../utils/workouts";
+
+const WEIGHT_OPTIONS = Array.from({ length: 81 }, (_, i) => String(i * 2.5));
+const REP_OPTIONS = Array.from({ length: 51 }, (_, i) => String(i));
 
 export function RecordView({
   draftWorkout,
@@ -26,6 +29,8 @@ export function RecordView({
   setReps,
   elapsedSeconds,
   timerStartedAt,
+  isResting,
+  restSeconds,
   selectedDate,
   selectedWorkouts,
   customExercises,
@@ -42,6 +47,7 @@ export function RecordView({
   onSave,
   onAddSet,
   onDeleteDraftSet,
+  onUpdateDraftSet,
   onAddCustomExercise,
   onDeleteCustomExercise,
   onReorderExercises,
@@ -55,6 +61,8 @@ export function RecordView({
   setReps: string;
   elapsedSeconds: number;
   timerStartedAt: number | null;
+  isResting: boolean;
+  restSeconds: number;
   selectedDate: string;
   selectedWorkouts: Workout[];
   customExercises: CustomExerciseMap;
@@ -71,6 +79,7 @@ export function RecordView({
   onSave: () => void;
   onAddSet: () => void;
   onDeleteDraftSet: (exerciseId: string, setId: string) => void;
+  onUpdateDraftSet: (exerciseId: string, setId: string, updates: { weight: number; reps: number; durationSeconds: number }) => void;
   onAddCustomExercise: (bodyPart: BodyPart, exercise: string) => void;
   onDeleteCustomExercise: (bodyPart: BodyPart, exercise: string) => void;
   onReorderExercises: (bodyPart: BodyPart, exercises: string[]) => void;
@@ -127,12 +136,12 @@ export function RecordView({
     cancelCustomExercise();
     setIsEditMode(false);
     setDeleteTarget(null);
-    onResetCurrentSet();
+    if (!isResting) onResetCurrentSet();
     onSelectedBodyPartChange(bodyPart);
   };
 
   const selectExercise = (exercise: string) => {
-    onResetCurrentSet();
+    if (!isResting) onResetCurrentSet();
     onSelectedExerciseChange(exercise);
   };
 
@@ -354,95 +363,159 @@ export function RecordView({
       </div>
 
       <div className="space-y-4 rounded-[8px] border border-line bg-surface p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-bold">当前组</h3>
-            <p className="mt-1 text-sm text-ink/50">
-              {selectedBodyPart} · {selectedExercise || "未选择动作"}
-            </p>
-          </div>
-          <div className="rounded-[8px] bg-mist px-3 py-2 text-lg font-bold tabular-nums">{formatDuration(elapsedSeconds)}</div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <label className="block">
-            <span className="text-sm font-semibold">重量</span>
-            <div className="mt-2 flex h-12 items-center rounded-[8px] border border-line bg-mist px-3">
-              <input
-                type="text"
-                inputMode="decimal"
-                pattern="[0-9]*\.?[0-9]*"
-                placeholder="0"
-                value={setWeight}
-                onChange={(event) => {
-                  const raw = event.target.value;
-                  const cleaned = raw.replace(/[^0-9.]/g, "");
-                  onSetWeightChange(cleaned);
-                }}
-                className="min-w-0 flex-1 bg-transparent text-base outline-none"
-              />
-              <span className="text-sm text-ink/50">kg</span>
+        {isResting ? (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-coral">休息中</h3>
+                <p className="mt-1 text-sm text-ink/50">
+                  {selectedBodyPart} · {selectedExercise || "未选择动作"}
+                </p>
+              </div>
+              <div className="rounded-[8px] bg-coral/10 px-3 py-2 text-lg font-bold tabular-nums text-coral">{formatDuration(restSeconds)}</div>
             </div>
-          </label>
-          <label className="block">
-            <span className="text-sm font-semibold">次数</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="0"
-              value={setReps}
-              onChange={(event) => {
-                const raw = event.target.value;
-                const cleaned = raw.replace(/[^0-9]/g, "");
-                onSetRepsChange(cleaned);
-              }}
-              className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
-            />
-          </label>
-        </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={onStartSetTimer}
-            disabled={timerStartedAt !== null || !selectedExercise}
-            className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-ocean px-3 text-sm font-semibold text-white disabled:bg-ink/15"
-          >
-            <Play size={17} aria-hidden="true" />
-            开始
-          </button>
-          <button
-            type="button"
-            onClick={onFinishSetTimer}
-            disabled={timerStartedAt === null}
-            className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-ocean px-3 text-sm font-semibold text-mist disabled:bg-ink/15"
-          >
-            <Square size={16} aria-hidden="true" />
-            完成
-          </button>
-          <button
-            type="button"
-            onClick={onResetCurrentSet}
-            className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-mist px-3 text-sm font-semibold text-ink/60"
-          >
-            <RotateCcw size={16} aria-hidden="true" />
-            重置
-          </button>
-        </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-sm font-semibold">重量</span>
+                <select
+                  value={setWeight}
+                  onChange={(event) => onSetWeightChange(event.target.value)}
+                  className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
+                >
+                  <option value="">0 kg</option>
+                  {WEIGHT_OPTIONS.map((w) => (
+                    <option key={w} value={w}>
+                      {w} kg
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold">次数</span>
+                <select
+                  value={setReps}
+                  onChange={(event) => onSetRepsChange(event.target.value)}
+                  className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
+                >
+                  <option value="">0 次</option>
+                  {REP_OPTIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r} 次
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
-        <button
-          type="button"
-          onClick={addSet}
-          disabled={!canAddSet}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-[8px] bg-coral px-3 text-sm font-semibold text-white disabled:bg-ink/15"
-        >
-          <Plus size={17} aria-hidden="true" />
-          添加本组
-        </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={onStartSetTimer}
+                disabled={!selectedExercise}
+                className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-ocean px-3 text-sm font-semibold text-white disabled:bg-ink/15"
+              >
+                <Play size={17} aria-hidden="true" />
+                开始下一组
+              </button>
+              <button
+                type="button"
+                onClick={onResetCurrentSet}
+                className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-mist px-3 text-sm font-semibold text-ink/60"
+              >
+                <RotateCcw size={16} aria-hidden="true" />
+                结束休息
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold">当前组</h3>
+                <p className="mt-1 text-sm text-ink/50">
+                  {selectedBodyPart} · {selectedExercise || "未选择动作"}
+                </p>
+              </div>
+              <div className="rounded-[8px] bg-mist px-3 py-2 text-lg font-bold tabular-nums">{formatDuration(elapsedSeconds)}</div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-sm font-semibold">重量</span>
+                <select
+                  value={setWeight}
+                  onChange={(event) => onSetWeightChange(event.target.value)}
+                  className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
+                >
+                  <option value="">0 kg</option>
+                  {WEIGHT_OPTIONS.map((w) => (
+                    <option key={w} value={w}>
+                      {w} kg
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold">次数</span>
+                <select
+                  value={setReps}
+                  onChange={(event) => onSetRepsChange(event.target.value)}
+                  className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
+                >
+                  <option value="">0 次</option>
+                  {REP_OPTIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r} 次
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={onStartSetTimer}
+                disabled={timerStartedAt !== null || !selectedExercise}
+                className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-ocean px-3 text-sm font-semibold text-white disabled:bg-ink/15"
+              >
+                <Play size={17} aria-hidden="true" />
+                开始
+              </button>
+              <button
+                type="button"
+                onClick={onFinishSetTimer}
+                disabled={timerStartedAt === null}
+                className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-ocean px-3 text-sm font-semibold text-mist disabled:bg-ink/15"
+              >
+                <Square size={16} aria-hidden="true" />
+                完成
+              </button>
+              <button
+                type="button"
+                onClick={onResetCurrentSet}
+                className="flex h-12 items-center justify-center gap-2 rounded-[8px] bg-mist px-3 text-sm font-semibold text-ink/60"
+              >
+                <RotateCcw size={16} aria-hidden="true" />
+                重置
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={addSet}
+              disabled={!canAddSet}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-[8px] bg-coral px-3 text-sm font-semibold text-white disabled:bg-ink/15"
+            >
+              <Plus size={17} aria-hidden="true" />
+              添加本组
+            </button>
+          </>
+        )}
       </div>
 
-      <DraftWorkoutSummary workout={draftWorkout} onDeleteSet={onDeleteDraftSet} />
+      <DraftWorkoutSummary workout={draftWorkout} onDeleteSet={onDeleteDraftSet} onUpdateSet={onUpdateDraftSet} />
 
       <div className="space-y-4 rounded-[8px] border border-line bg-surface p-4">
         <label className="block">
@@ -486,7 +559,40 @@ function SummaryTile({ label, value }: { label: string; value: number }) {
   );
 }
 
-function DraftWorkoutSummary({ workout, onDeleteSet }: { workout: Workout; onDeleteSet: (exerciseId: string, setId: string) => void }) {
+function DraftWorkoutSummary({
+  workout,
+  onDeleteSet,
+  onUpdateSet,
+}: {
+  workout: Workout;
+  onDeleteSet: (exerciseId: string, setId: string) => void;
+  onUpdateSet: (exerciseId: string, setId: string, updates: { weight: number; reps: number; durationSeconds: number }) => void;
+}) {
+  const [editingSetId, setEditingSetId] = useState<string | null>(null);
+  const [editWeightRaw, setEditWeightRaw] = useState("");
+  const [editRepsRaw, setEditRepsRaw] = useState("");
+  const [editDurationRaw, setEditDurationRaw] = useState("");
+
+  const startEditing = (exerciseId: string, set: WorkoutSet) => {
+    setEditingSetId(`${exerciseId}:${set.id}`);
+    setEditWeightRaw(String(set.weight));
+    setEditRepsRaw(String(set.reps));
+    setEditDurationRaw(String(set.durationSeconds));
+  };
+
+  const cancelEditing = () => {
+    setEditingSetId(null);
+  };
+
+  const saveEdit = (exerciseId: string, setId: string) => {
+    onUpdateSet(exerciseId, setId, {
+      weight: Math.max(0, Number(editWeightRaw) || 0),
+      reps: Math.max(0, Number(editRepsRaw) || 0),
+      durationSeconds: Math.max(0, Number(editDurationRaw) || 0),
+    });
+    setEditingSetId(null);
+  };
+
   if (workout.exercises.length === 0) {
     return (
       <div className="rounded-[8px] border border-dashed border-line bg-surface px-4 py-8 text-center">
@@ -504,22 +610,113 @@ function DraftWorkoutSummary({ workout, onDeleteSet }: { workout: Workout; onDel
             <h3 className="mt-1 text-lg font-bold">{exercise.exercise}</h3>
           </div>
           <div className="mt-3 space-y-2">
-            {exercise.sets.map((set, index) => (
-              <div key={set.id} className="grid grid-cols-[1fr_38px] items-center gap-2 rounded-[8px] bg-mist px-3 py-2">
-                <span className="text-sm font-semibold text-ink/60">
-                  {index + 1}组 · {set.weight}kg · {set.reps}次 · {formatDuration(set.durationSeconds)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onDeleteSet(exercise.id, set.id)}
-                  className="flex h-9 w-9 items-center justify-center rounded-[8px] text-coral"
-                  aria-label="删除当前组"
-                  title="删除当前组"
-                >
-                  <Trash2 size={16} aria-hidden="true" />
-                </button>
-              </div>
-            ))}
+            {exercise.sets.map((set, index) => {
+              const setKey = `${exercise.id}:${set.id}`;
+              const isEditing = editingSetId === setKey;
+
+              if (isEditing) {
+                return (
+                  <div key={set.id} className="space-y-3 rounded-[8px] bg-mist px-3 py-3">
+                    <p className="text-sm font-semibold text-ink/50">{index + 1}组 · 编辑中</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="block">
+                        <span className="text-xs text-ink/50">重量</span>
+                        <select
+                          value={editWeightRaw}
+                          onChange={(e) => setEditWeightRaw(e.target.value)}
+                          className="mt-1 h-11 w-full rounded-[8px] border border-line bg-surface px-3 text-base outline-none"
+                          aria-label="重量"
+                        >
+                          <option value="">0 kg</option>
+                          {WEIGHT_OPTIONS.map((w) => (
+                            <option key={w} value={w}>
+                              {w} kg
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="text-xs text-ink/50">次数</span>
+                        <select
+                          value={editRepsRaw}
+                          onChange={(e) => setEditRepsRaw(e.target.value)}
+                          className="mt-1 h-11 w-full rounded-[8px] border border-line bg-surface px-3 text-base outline-none"
+                          aria-label="次数"
+                        >
+                          <option value="">0 次</option>
+                          {REP_OPTIONS.map((r) => (
+                            <option key={r} value={r}>
+                              {r} 次
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <label className="block">
+                      <span className="text-xs text-ink/50">持续时间（秒）</span>
+                      <div className="mt-1 flex items-center gap-1 rounded-[8px] border border-line bg-surface px-3">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={editDurationRaw}
+                          onChange={(e) => setEditDurationRaw(e.target.value.replace(/[^0-9]/g, ""))}
+                          className="h-11 min-w-0 flex-1 bg-transparent text-base outline-none"
+                          aria-label="持续时间（秒）"
+                        />
+                        <span className="text-sm text-ink/50">秒</span>
+                      </div>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(exercise.id, set.id)}
+                        className="flex h-11 items-center justify-center gap-1 rounded-[8px] bg-ocean text-sm font-semibold text-white"
+                        aria-label="确认修改"
+                      >
+                        <Check size={16} aria-hidden="true" />
+                        确认
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEditing}
+                        className="flex h-11 items-center justify-center gap-1 rounded-[8px] border border-line bg-mist text-sm font-semibold text-ink/60"
+                        aria-label="取消修改"
+                      >
+                        <X size={16} aria-hidden="true" />
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={set.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-1 rounded-[8px] bg-mist px-3 py-2">
+                  <span className="text-sm font-semibold text-ink/60">
+                    {index + 1}组 · {set.weight}kg · {set.reps}次 · {formatDuration(set.durationSeconds)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => startEditing(exercise.id, set)}
+                    className="flex h-11 w-11 items-center justify-center rounded-[8px] text-ocean"
+                    aria-label="编辑当前组"
+                    title="编辑当前组"
+                  >
+                    <Pencil size={16} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteSet(exercise.id, set.id)}
+                    className="flex h-11 w-11 items-center justify-center rounded-[8px] text-coral"
+                    aria-label="删除当前组"
+                    title="删除当前组"
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </article>
       ))}

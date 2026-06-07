@@ -39,6 +39,9 @@ export default function App() {
   const [setReps, setSetReps] = useState("10");
   const [timerStartedAt, setTimerStartedAt] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isResting, setIsResting] = useState(false);
+  const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
+  const [restSeconds, setRestSeconds] = useState(0);
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [tab, setTab] = useState<Tab>("record");
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("week");
@@ -76,6 +79,16 @@ export default function App() {
     return () => window.clearInterval(interval);
   }, [timerStartedAt]);
 
+  useEffect(() => {
+    if (restStartedAt === null) return;
+
+    const interval = window.setInterval(() => {
+      setRestSeconds(Math.max(0, Math.floor((Date.now() - restStartedAt) / 1000)));
+    }, 250);
+
+    return () => window.clearInterval(interval);
+  }, [restStartedAt]);
+
   const workoutsByDate = useMemo(() => groupWorkoutsByDate(workouts), [workouts]);
   const photosByDate = useMemo(() => groupPhotosByDate(photos), [photos]);
   const selectedWorkouts = workoutsByDate[selectedDate] || [];
@@ -112,6 +125,9 @@ export default function App() {
     setDraftWorkout(createBlankWorkout(nextWorkout.date));
     setElapsedSeconds(0);
     setTimerStartedAt(null);
+    setIsResting(false);
+    setRestStartedAt(null);
+    setRestSeconds(0);
   };
 
   const deleteWorkout = (id: string) => {
@@ -119,6 +135,11 @@ export default function App() {
   };
 
   const startSetTimer = () => {
+    if (isResting) {
+      setIsResting(false);
+      setRestStartedAt(null);
+      setRestSeconds(0);
+    }
     setTimerStartedAt(Date.now());
     setElapsedSeconds(0);
   };
@@ -132,6 +153,9 @@ export default function App() {
   const resetCurrentSet = () => {
     setTimerStartedAt(null);
     setElapsedSeconds(0);
+    setIsResting(false);
+    setRestStartedAt(null);
+    setRestSeconds(0);
   };
 
   const addSetToDraftWorkout = () => {
@@ -171,8 +195,10 @@ export default function App() {
         ],
       };
     });
-    setSetReps("10");
     resetCurrentSet();
+    setIsResting(true);
+    setRestStartedAt(Date.now());
+    setRestSeconds(0);
   };
 
   const deleteDraftSet = (exerciseId: string, setId: string) => {
@@ -181,6 +207,24 @@ export default function App() {
       exercises: current.exercises
         .map((exercise) => (exercise.id === exerciseId ? { ...exercise, sets: exercise.sets.filter((set) => set.id !== setId) } : exercise))
         .filter((exercise) => exercise.sets.length > 0),
+    }));
+  };
+
+  const updateDraftSet = (exerciseId: string, setId: string, updates: { weight: number; reps: number; durationSeconds: number }) => {
+    setDraftWorkout((current) => ({
+      ...current,
+      exercises: current.exercises.map((exercise) =>
+        exercise.id === exerciseId
+          ? {
+              ...exercise,
+              sets: exercise.sets.map((set) =>
+                set.id === setId
+                  ? { ...set, weight: updates.weight, reps: updates.reps, durationSeconds: updates.durationSeconds }
+                  : set,
+              ),
+            }
+          : exercise,
+      ),
     }));
   };
 
@@ -285,6 +329,8 @@ export default function App() {
               setReps={setReps}
               elapsedSeconds={elapsedSeconds}
               timerStartedAt={timerStartedAt}
+              isResting={isResting}
+              restSeconds={restSeconds}
               selectedDate={selectedDate}
               selectedWorkouts={selectedWorkouts}
               customExercises={customExercises}
@@ -301,6 +347,7 @@ export default function App() {
               onSave={saveWorkout}
               onAddSet={addSetToDraftWorkout}
               onDeleteDraftSet={deleteDraftSet}
+              onUpdateDraftSet={updateDraftSet}
               onAddCustomExercise={addExerciseToCurrentGroup}
               onDeleteCustomExercise={deleteExerciseFromCurrentGroup}
               onReorderExercises={reorderExerciseGroup}
