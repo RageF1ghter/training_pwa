@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, Flame, Pencil, Play, Plus, RotateCcw, Save, Square, Trash2, X } from "lucide-react";
+import { Check, Pencil, Play, Plus, RotateCcw, Save, Square, Trash2, X } from "lucide-react";
 import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from "react";
 import { WorkoutList } from "../components/WorkoutList";
 import { bodyParts, exercisePresets } from "../data/exercises";
@@ -516,34 +516,6 @@ export function RecordView({
       </div>
 
       <DraftWorkoutSummary workout={draftWorkout} onDeleteSet={onDeleteDraftSet} onUpdateSet={onUpdateDraftSet} />
-
-      <div className="space-y-4 rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
-        <label className="block">
-          <span className="text-sm font-semibold">整次训练消耗</span>
-          <div className="mt-2 flex items-center gap-2 rounded-[8px] border border-line bg-mist px-3">
-            <Flame className="text-coral" size={19} aria-hidden="true" />
-            <input
-              type="number"
-              min="0"
-              inputMode="decimal"
-              value={draftWorkout.calories}
-              onChange={(event) => onDraftWorkoutChange((current) => ({ ...current, calories: Number(event.target.value) }))}
-              className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none"
-              aria-label="整次训练消耗"
-            />
-            <span className="text-sm text-ink/50">kcal</span>
-          </div>
-        </label>
-        <label className="block">
-          <span className="text-sm font-semibold">备注</span>
-          <textarea
-            value={draftWorkout.notes}
-            onChange={(event) => onDraftWorkoutChange((current) => ({ ...current, notes: event.target.value }))}
-            rows={3}
-            className="mt-2 w-full resize-none rounded-[8px] border border-line bg-mist px-3 py-3 text-base outline-none focus:border-ocean"
-          />
-        </label>
-      </div>
 
       <WorkoutList workouts={selectedWorkouts} onDeleteWorkout={onDeleteWorkout} emptyText="这一天还没有训练记录" />
     </section>

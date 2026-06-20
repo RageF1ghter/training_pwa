@@ -1,6 +1,6 @@
-import { Activity, CalendarDays, Camera, Settings } from "lucide-react";
+import { Activity, CalendarDays, Camera, Flame, Settings } from "lucide-react";
 import JSZip from "jszip";
-import { type ChangeEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Stat } from "./components/Stat";
 import { TabButton } from "./components/TabButton";
 import { exercisePresets } from "./data/exercises";
@@ -64,6 +64,9 @@ export default function App() {
       return false;
     }
   });
+  const [calorieDialogOpen, setCalorieDialogOpen] = useState(false);
+  const [calorieDialogValue, setCalorieDialogValue] = useState("");
+  const calorieDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     try {
@@ -120,6 +123,13 @@ export default function App() {
     return () => window.clearInterval(interval);
   }, [restStartedAt]);
 
+  useEffect(() => {
+    const dialog = calorieDialogRef.current;
+    if (!dialog) return;
+    if (calorieDialogOpen && !dialog.open) dialog.showModal();
+    else if (!calorieDialogOpen && dialog.open) dialog.close();
+  }, [calorieDialogOpen]);
+
   const workoutsByDate = useMemo(() => groupWorkoutsByDate(workouts), [workouts]);
   const photosByDate = useMemo(() => groupPhotosByDate(photos), [photos]);
   const availableDates = useMemo((): DateInfo[] => {
@@ -157,11 +167,29 @@ export default function App() {
       .filter((exercise) => exercise.exercise && exercise.sets.length > 0);
     if (cleanedExercises.length === 0) return;
 
+    setCalorieDialogValue("");
+    setCalorieDialogOpen(true);
+  };
+
+  const confirmSaveWorkout = () => {
+    const cleanedExercises = draftWorkout.exercises
+      .map((exercise) => ({
+        ...exercise,
+        exercise: exercise.exercise.trim(),
+        sets: exercise.sets.map((set) => ({
+          ...set,
+          weight: Math.max(0, Number(set.weight) || 0),
+          reps: Math.max(0, Number(set.reps) || 0),
+          durationSeconds: Math.max(0, Number(set.durationSeconds) || 0),
+        })),
+      }))
+      .filter((exercise) => exercise.exercise && exercise.sets.length > 0);
+    if (cleanedExercises.length === 0) return;
+
     const nextWorkout = {
       ...draftWorkout,
-      notes: draftWorkout.notes.trim(),
       exercises: cleanedExercises,
-      calories: Math.max(0, Number(draftWorkout.calories) || 0),
+      calories: Math.max(0, Number(calorieDialogValue) || 0),
       createdAt: new Date().toISOString(),
     };
 
@@ -178,6 +206,7 @@ export default function App() {
     setIsResting(false);
     setRestStartedAt(null);
     setRestSeconds(0);
+    setCalorieDialogOpen(false);
   };
 
   const deleteWorkout = (id: string) => {
@@ -493,6 +522,52 @@ export default function App() {
               onDateChange={selectDate}
             />
           )}
+
+          <dialog
+            ref={calorieDialogRef}
+            onClose={() => setCalorieDialogOpen(false)}
+            className="w-[min(340px,calc(100vw-40px))] rounded-[8px] border border-line bg-glass backdrop-blur-xl p-0 text-ink shadow-glass backdrop:bg-ink/35"
+          >
+            <div className="p-5">
+              <h3 className="text-lg font-bold">输入训练消耗</h3>
+              <p className="mt-2 text-sm leading-6 text-ink/60">请输入本次训练消耗的卡路里。</p>
+              <label className="mt-4 block">
+                <div className="flex items-center gap-2 rounded-[8px] border border-line bg-mist px-3">
+                  <Flame className="text-coral" size={19} aria-hidden="true" />
+                  <input
+                    type="number"
+                    min="0"
+                    inputMode="decimal"
+                    value={calorieDialogValue}
+                    onChange={(event) => setCalorieDialogValue(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        confirmSaveWorkout();
+                      }
+                    }}
+                    className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none"
+                    placeholder="0"
+                    aria-label="卡路里"
+                    autoFocus
+                  />
+                  <span className="text-sm text-ink/50">kcal</span>
+                </div>
+              </label>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button type="button" onClick={confirmSaveWorkout} className="h-11 rounded-[8px] bg-ocean px-3 text-sm font-semibold text-white">
+                  保存
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCalorieDialogOpen(false)}
+                  className="h-11 rounded-[8px] bg-mist px-3 text-sm font-semibold text-ink/60"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          </dialog>
 
           {tab === "calendar" && (
             <CalendarView

@@ -64,7 +64,6 @@ export function WorkoutList({
               </div>
             ))}
           </div>
-          {workout.notes && <p className="mt-3 text-sm leading-6 text-ink/60">{workout.notes}</p>}
         </article>
       ))}
     </div>

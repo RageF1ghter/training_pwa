@@ -8,7 +8,6 @@ export function createBlankWorkout(date = todayKey()): Workout {
     date,
     exercises: [],
     calories: 0,
-    notes: "",
     createdAt: new Date().toISOString(),
   };
 }

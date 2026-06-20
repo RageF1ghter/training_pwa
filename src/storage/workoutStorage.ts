@@ -22,7 +22,6 @@ function normalizeWorkout(value: unknown): Workout | null {
   const id = String(raw.id || crypto.randomUUID());
   const date = String(raw.date || "");
   const calories = Math.max(0, Number(raw.calories) || 0);
-  const notes = String(raw.notes || "");
   const createdAt = String(raw.createdAt || new Date().toISOString());
 
   if (Array.isArray(raw.exercises)) {
@@ -31,7 +30,6 @@ function normalizeWorkout(value: unknown): Workout | null {
       date,
       exercises: raw.exercises.map(normalizeWorkoutExercise).filter(Boolean) as Workout["exercises"],
       calories,
-      notes,
       createdAt,
       startedAt: typeof raw.startedAt === "number" ? raw.startedAt : undefined,
     };
@@ -50,7 +48,6 @@ function normalizeWorkout(value: unknown): Workout | null {
         },
       ],
       calories,
-      notes,
       createdAt,
       startedAt: typeof raw.startedAt === "number" ? raw.startedAt : undefined,
     };

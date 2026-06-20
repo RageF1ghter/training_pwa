@@ -31,7 +31,6 @@ export type Workout = {
   date: string;
   exercises: WorkoutExercise[];
   calories: number;
-  notes: string;
   createdAt: string;
   startedAt?: number;
 };
