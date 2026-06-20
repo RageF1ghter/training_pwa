@@ -95,16 +95,25 @@ export function getExerciseSetsWithDetails(
   });
 
   let prevFinishedAt: number | null = null;
+  let prevWorkoutId: string | null = null;
   const enriched = allSets.map((set) => {
     const computedDuration =
       set.startedAt !== undefined && set.finishedAt !== undefined
         ? Math.max(0, (set.finishedAt - set.startedAt) / 1000)
         : null;
+
+    // Reset rest-gap tracking when crossing a workout boundary, so the
+    // first set of each workout always has a null rest gap.
+    if (prevWorkoutId !== null && prevWorkoutId !== set.workoutId) {
+      prevFinishedAt = null;
+    }
+
     const restGapSeconds =
       set.startedAt !== undefined && prevFinishedAt !== null
         ? Math.max(0, (set.startedAt - prevFinishedAt) / 1000)
         : null;
     prevFinishedAt = set.finishedAt ?? null;
+    prevWorkoutId = set.workoutId;
     return { ...set, computedDuration, restGapSeconds };
   });
 
@@ -118,6 +127,26 @@ export function getExerciseSetsWithDetails(
   }
 
   return Array.from(grouped.values()).sort((a, b) => b.workoutDate.localeCompare(a.workoutDate));
+}
+
+// ── Body-part aggregation (for empty-day historical overview) ──
+
+export type BodyPartRepsAgg = {
+  bodyPart: BodyPart;
+  totalReps: number;
+};
+
+export function aggregateBodyPartReps(workouts: Workout[]): BodyPartRepsAgg[] {
+  const map = new Map<BodyPart, number>();
+  for (const workout of workouts) {
+    for (const exercise of workout.exercises) {
+      const reps = exercise.sets.reduce((sum, s) => sum + s.reps, 0);
+      map.set(exercise.bodyPart, (map.get(exercise.bodyPart) || 0) + reps);
+    }
+  }
+  return Array.from(map.entries())
+    .map(([bodyPart, totalReps]) => ({ bodyPart, totalReps }))
+    .sort((a, b) => b.totalReps - a.totalReps);
 }
 
 export function formatRestGap(seconds: number | null): string {

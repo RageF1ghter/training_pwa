@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { BodyPartPieChart } from "../components/BodyPartPieChart";
 import { ExerciseLineChart } from "../components/ExerciseLineChart";
 import { ExercisePieChart } from "../components/ExercisePieChart";
 import { Stat } from "../components/Stat";
@@ -15,7 +16,13 @@ import {
   todayKey,
   weekdayLabels,
 } from "../utils/date";
-import { aggregateExerciseReps, getExerciseSetsWithDetails, sumCalories, sumSets } from "../utils/workouts";
+import {
+  aggregateBodyPartReps,
+  aggregateExerciseReps,
+  getExerciseSetsWithDetails,
+  sumCalories,
+  sumSets,
+} from "../utils/workouts";
 
 export function CalendarView({
   mode,
@@ -47,15 +54,25 @@ export function CalendarView({
   }, [cursorDate, mode]);
 
   const selectedWorkouts = workoutsByDate[selectedDate] || [];
+  const hasSelectedWorkouts = selectedWorkouts.length > 0;
   const rangeWorkouts = days.flatMap((day) => workoutsByDate[toDateKey(day)] || []);
   const periodCalories = sumCalories(rangeWorkouts);
   const periodSets = sumSets(rangeWorkouts);
 
+  // All historical workouts (for body-part overview on empty days)
+  const allWorkouts = useMemo(() => Object.values(workoutsByDate).flat(), [workoutsByDate]);
+  const bodyPartAgg = useMemo(() => aggregateBodyPartReps(allWorkouts), [allWorkouts]);
+
   const [selectedChartExercise, setSelectedChartExercise] = useState<string | null>(null);
-  const exerciseRepsAgg = useMemo(() => aggregateExerciseReps(rangeWorkouts), [rangeWorkouts]);
+  // When selected date has workouts, show per-exercise distribution for that day;
+  // otherwise the BodyPartPieChart replaces the exercise chart entirely.
+  const exerciseRepsAgg = useMemo(
+    () => (hasSelectedWorkouts ? aggregateExerciseReps(selectedWorkouts) : []),
+    [hasSelectedWorkouts, selectedWorkouts],
+  );
   const exerciseDetailSets = useMemo(
-    () => (selectedChartExercise ? getExerciseSetsWithDetails(rangeWorkouts, selectedChartExercise) : []),
-    [rangeWorkouts, selectedChartExercise],
+    () => (selectedChartExercise ? getExerciseSetsWithDetails(allWorkouts, selectedChartExercise) : []),
+    [allWorkouts, selectedChartExercise],
   );
 
   useEffect(() => {
@@ -169,15 +186,19 @@ export function CalendarView({
         </div>
       </div>
 
-      {/* Exercise distribution chart */}
+      {/* Exercise / body-part distribution chart */}
       <div className="rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
-        <h3 className="text-base font-bold">训练分布</h3>
+        <h3 className="text-base font-bold">{hasSelectedWorkouts ? "训练分布" : "历史部位分布"}</h3>
         <div className="mt-3">
-          <ExercisePieChart
-            data={exerciseRepsAgg}
-            selectedExercise={selectedChartExercise}
-            onSelectExercise={setSelectedChartExercise}
-          />
+          {hasSelectedWorkouts ? (
+            <ExercisePieChart
+              data={exerciseRepsAgg}
+              selectedExercise={selectedChartExercise}
+              onSelectExercise={setSelectedChartExercise}
+            />
+          ) : (
+            <BodyPartPieChart data={bodyPartAgg} />
+          )}
         </div>
       </div>
 
