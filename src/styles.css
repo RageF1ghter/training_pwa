@@ -133,3 +133,10 @@ button {
   margin: 0;
   flex-shrink: 0;
 }
+
+/* Native <dialog>: Tailwind's display utilities (e.g. flex) would override the
+   element's default display:none, leaving the dialog permanently visible and
+   breaking showModal()/close(). Force closed dialogs to stay hidden. */
+dialog:not([open]) {
+  display: none !important;
+}

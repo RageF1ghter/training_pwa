@@ -41,3 +41,35 @@ export type DayPhoto = {
   dataUrl: string;
   createdAt: string;
 };
+
+export type Gender = "male" | "female";
+
+export type FitnessGoal = "增肌" | "减脂" | "维持" | "塑形" | "增力";
+
+export type BodyProfile = {
+  heightCm: number;
+  weightKg: number;
+  age: number;
+  gender: Gender | "";
+  goal: FitnessGoal | "";
+};
+
+export type BodyProfileRecord = BodyProfile & {
+  id: string;
+  recordedAt: string;
+};
+
+export type ChatRole = "system" | "user" | "assistant";
+
+export type ChatMessage = {
+  id: string;
+  role: ChatRole;
+  content: string;
+  createdAt: string;
+};
+
+export type ChatSummary = {
+  content: string;
+  summarizedUpTo: string;
+  createdAt: string;
+};

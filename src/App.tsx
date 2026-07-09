@@ -1,4 +1,4 @@
-import { Activity, CalendarDays, Camera, Flame, Settings } from "lucide-react";
+import { Activity, CalendarDays, Camera, Flame, Settings, Sparkles, Send, RefreshCw, X } from "lucide-react";
 import JSZip from "jszip";
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Stat } from "./components/Stat";
@@ -19,7 +19,11 @@ import {
 } from "./storage/customExerciseStorage";
 import { fileToDataUrl, getPhotos, removePhoto, savePhoto } from "./storage/photoStorage";
 import { readWorkouts, writeWorkouts } from "./storage/workoutStorage";
-import type { BodyPart, CalendarMode, CustomExerciseMap, DayPhoto, ExerciseOrderMap, HiddenExerciseMap, Tab, Workout } from "./types";
+import { readBodyProfile, writeBodyProfile, readBodyProfileHistory, writeBodyProfileHistory } from "./storage/bodyProfileStorage";
+import { readApiKey, readChatMessages, readChatSummary, writeApiKey, writeChatMessages, writeChatSummary } from "./storage/chatStorage";
+import { chat as deepseekChat, compactHistory, type ApiMessage } from "./services/deepseek";
+import { buildAIContextMarkdown } from "./utils/aiContext";
+import type { BodyPart, BodyProfile, BodyProfileRecord, CalendarMode, ChatMessage, ChatSummary, CustomExerciseMap, DayPhoto, ExerciseOrderMap, HiddenExerciseMap, Tab, Workout } from "./types";
 import { todayKey } from "./utils/date";
 import { makeId } from "./utils/id";
 import { groupPhotosByDate, groupWorkoutsByDate, sumCalories, sumSets } from "./utils/workouts";
@@ -35,6 +39,11 @@ export default function App() {
   const [hiddenExercises, setHiddenExercises] = useState<HiddenExerciseMap>(() => readHiddenExercises());
   const [exerciseOrder, setExerciseOrder] = useState<ExerciseOrderMap>(() => readExerciseOrder());
   const [photos, setPhotos] = useState<DayPhoto[]>([]);
+  const [bodyProfile, setBodyProfile] = useState<BodyProfile>(() => readBodyProfile());
+  const [bodyProfileHistory, setBodyProfileHistory] = useState<BodyProfileRecord[]>(() => readBodyProfileHistory());
+  const [apiKey, setApiKey] = useState(() => readApiKey());
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => readChatMessages());
+  const [chatSummary, setChatSummary] = useState<ChatSummary | null>(() => readChatSummary());
   const [draftWorkout, setDraftWorkout] = useState<Workout>(() => createBlankWorkout());
   const [selectedBodyPart, setSelectedBodyPart] = useState<BodyPart>("胸部");
   const [selectedExercise, setSelectedExercise] = useState(() => exercisePresets["胸部"][0]);
@@ -67,6 +76,12 @@ export default function App() {
   const [calorieDialogOpen, setCalorieDialogOpen] = useState(false);
   const [calorieDialogValue, setCalorieDialogValue] = useState("");
   const calorieDialogRef = useRef<HTMLDialogElement>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const chatDialogRef = useRef<HTMLDialogElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -96,6 +111,26 @@ export default function App() {
   useEffect(() => {
     writeExerciseOrder(exerciseOrder);
   }, [exerciseOrder]);
+
+  useEffect(() => {
+    writeBodyProfile(bodyProfile);
+  }, [bodyProfile]);
+
+  useEffect(() => {
+    writeBodyProfileHistory(bodyProfileHistory);
+  }, [bodyProfileHistory]);
+
+  useEffect(() => {
+    writeApiKey(apiKey);
+  }, [apiKey]);
+
+  useEffect(() => {
+    writeChatMessages(chatMessages);
+  }, [chatMessages]);
+
+  useEffect(() => {
+    writeChatSummary(chatSummary);
+  }, [chatSummary]);
 
   useEffect(() => {
     getPhotos()
@@ -129,6 +164,19 @@ export default function App() {
     if (calorieDialogOpen && !dialog.open) dialog.showModal();
     else if (!calorieDialogOpen && dialog.open) dialog.close();
   }, [calorieDialogOpen]);
+
+  useEffect(() => {
+    const dialog = chatDialogRef.current;
+    if (!dialog) return;
+    if (chatOpen && !dialog.open) dialog.showModal();
+    else if (!chatOpen && dialog.open) dialog.close();
+  }, [chatOpen]);
+
+  // Auto-scroll chat to bottom whenever messages change.
+  useEffect(() => {
+    const node = chatScrollRef.current;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [chatMessages, chatSending]);
 
   const workoutsByDate = useMemo(() => groupWorkoutsByDate(workouts), [workouts]);
   const photosByDate = useMemo(() => groupPhotosByDate(photos), [photos]);
@@ -389,6 +437,127 @@ export default function App() {
     setPhotos((items) => items.filter((item) => item.id !== id));
   };
 
+  const saveBodyProfile = (profile: BodyProfile) => {
+    const normalized: BodyProfile = {
+      heightCm: Math.max(0, Number(profile.heightCm) || 0),
+      weightKg: Math.max(0, Number(profile.weightKg) || 0),
+      age: Math.max(0, Number(profile.age) || 0),
+      gender: profile.gender === "male" || profile.gender === "female" ? profile.gender : "",
+      goal: profile.goal,
+    };
+
+    const now = new Date().toISOString();
+    const record: BodyProfileRecord = { ...normalized, id: makeId(), recordedAt: now };
+
+    setBodyProfile(normalized);
+    setBodyProfileHistory((prev) =>
+      [...prev.filter((item) => item.recordedAt !== now), record].sort((a, b) =>
+        a.recordedAt.localeCompare(b.recordedAt),
+      ),
+    );
+  };
+
+  // ── AI chat ──
+  const buildDataContext = () =>
+    buildAIContextMarkdown({ workouts, bodyProfile, bodyProfileHistory, range: "30d" });
+
+  // Assemble the messages array sent to the API: optional summary + current
+  // data snapshot (rebuilt fresh each send) + persisted conversation turns.
+  const assembleApiMessages = (extra: ChatMessage[]): ApiMessage[] => {
+    const out: ApiMessage[] = [];
+    if (chatSummary) {
+      out.push({ role: "system", content: `此前对话摘要：\n${chatSummary.content}` });
+    }
+    out.push({
+      role: "system",
+      content:
+        "你是 FitLog 的健身助手，会根据用户的训练记录和身体数据给出针对性建议。以下是用户当前数据：\n\n" +
+        buildDataContext(),
+    });
+    for (const m of extra) {
+      if (m.role === "system") continue;
+      out.push({ role: m.role, content: m.content });
+    }
+    return out;
+  };
+
+  const handleSendChat = async () => {
+    const text = chatInput.trim();
+    if (!text || chatSending) return;
+    if (!apiKey.trim()) {
+      setChatError("请先在设置页填写 DeepSeek API Key");
+      return;
+    }
+
+    const userMsg: ChatMessage = { id: makeId(), role: "user", content: text, createdAt: new Date().toISOString() };
+    const baseMessages = [...chatMessages, userMsg];
+    setChatMessages(baseMessages);
+    setChatInput("");
+    setChatError(null);
+    setChatSending(true);
+
+    const apiMessages = assembleApiMessages(baseMessages);
+    const result = await deepseekChat({ apiKey, messages: apiMessages });
+    setChatSending(false);
+
+    if (!result.success || !result.data) {
+      setChatError(result.message);
+      return;
+    }
+
+    const assistantMsg: ChatMessage = {
+      id: makeId(),
+      role: "assistant",
+      content: result.data,
+      createdAt: new Date().toISOString(),
+    };
+    setChatMessages((prev) => [...prev, assistantMsg]);
+
+    // Compact when >= 5 turns (10 non-system messages) have accumulated.
+    maybeCompact([...baseMessages, assistantMsg]);
+  };
+
+  const maybeCompact = async (all: ChatMessage[]) => {
+    const turns = all.filter((m) => m.role !== "system");
+    if (turns.length < 10) return;
+
+    const toSummarize = turns.slice(0, turns.length - 4); // keep latest 2 turns
+    if (toSummarize.length < 2) return;
+
+    const apiMessages: ApiMessage[] = toSummarize.map((m) => ({ role: m.role, content: m.content }));
+    const result = await compactHistory({ apiKey, messages: apiMessages });
+    if (!result.success || !result.data) return; // keep history on failure, retry next time
+
+    const summarizedIds = new Set(toSummarize.map((m) => m.id));
+    setChatSummary({
+      content: (chatSummary?.content ? chatSummary.content + "\n" : "") + result.data,
+      summarizedUpTo: toSummarize[toSummarize.length - 1].id,
+      createdAt: new Date().toISOString(),
+    });
+    setChatMessages((prev) => prev.filter((m) => !summarizedIds.has(m.id)));
+  };
+
+  const handleRefreshDataContext = () => {
+    // The data snapshot is rebuilt on every send, so a refresh just re-injects
+    // fresh data by nudging the conversation. We surface this to the user via
+    // a transient assistant note.
+    const note: ChatMessage = {
+      id: makeId(),
+      role: "assistant",
+      content: "已刷新你的最新训练与身体数据，后续回答将基于最新数据分析。",
+      createdAt: new Date().toISOString(),
+    };
+    setChatMessages((prev) => [...prev, note]);
+    setChatError(null);
+  };
+
+  const handleClearChat = () => {
+    setChatMessages([]);
+    setChatSummary(null);
+    setChatError(null);
+    setChatInput("");
+  };
+
   const handleExport = async (dateKeys?: string[]) => {
     const isPartial = dateKeys && dateKeys.length > 0;
     const exportData = {
@@ -399,6 +568,8 @@ export default function App() {
       customExercises,
       hiddenExercises,
       exerciseOrder,
+      bodyProfile,
+      bodyProfileHistory,
       photos: isPartial ? photos.filter((p) => dateKeys.includes(p.date)) : photos,
     };
 
@@ -452,6 +623,12 @@ export default function App() {
       }
       if (data.exerciseOrder && typeof data.exerciseOrder === "object") {
         setExerciseOrder(data.exerciseOrder as typeof exerciseOrder);
+      }
+      if (data.bodyProfile && typeof data.bodyProfile === "object") {
+        setBodyProfile(data.bodyProfile as typeof bodyProfile);
+      }
+      if (Array.isArray(data.bodyProfileHistory)) {
+        setBodyProfileHistory(data.bodyProfileHistory as typeof bodyProfileHistory);
       }
 
       // Merge photos: remove existing for imported dates, then save imported
@@ -598,6 +775,13 @@ export default function App() {
               isLightTheme={isLightTheme}
               onThemeToggle={() => setIsLightTheme((prev) => !prev)}
               availableDates={availableDates}
+              bodyProfile={bodyProfile}
+              lastBodyProfileRecord={bodyProfileHistory[bodyProfileHistory.length - 1] ?? null}
+              onSaveBodyProfile={saveBodyProfile}
+              apiKey={apiKey}
+              onApiKeyChange={setApiKey}
+              onClearChat={handleClearChat}
+              chatMessageCount={chatMessages.filter((m) => m.role !== "system").length}
               onExport={handleExport}
               onImport={handleImport}
             />
@@ -611,6 +795,112 @@ export default function App() {
         <TabButton icon={<Camera size={21} />} label="照片" active={tab === "photos"} onClick={() => setTab("photos")} />
         <TabButton icon={<Settings size={21} />} label="设置" active={tab === "settings"} onClick={() => setTab("settings")} />
       </nav>
+
+      {/* AI assistant floating button */}
+      <button
+        type="button"
+        aria-label="AI 助手"
+        onClick={() => setChatOpen(true)}
+        className="safe-bottom fixed bottom-20 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-ocean text-mist shadow-glass active:scale-95"
+      >
+        <Sparkles size={26} />
+      </button>
+
+      {/* AI chat dialog — centered modal, click backdrop to close */}
+      <dialog
+        ref={chatDialogRef}
+        onClose={() => setChatOpen(false)}
+        onClick={(event) => {
+          // Click on the dialog element itself (the backdrop) closes; clicks
+          // inside the panel are caught by the panel so they never reach here
+          // with target === currentTarget.
+          if (event.target === event.currentTarget) setChatOpen(false);
+        }}
+        className="flex h-[85dvh] w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden rounded-[12px] border border-line bg-glass backdrop-blur-xl p-0 text-ink shadow-glass backdrop:bg-ink/40"
+      >
+        {/* Header */}
+        <div className="safe-top flex items-center justify-between border-b border-line px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Sparkles size={20} className="text-ocean" />
+            <span className="text-base font-bold">AI 健身助手</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label="刷新数据"
+              onClick={handleRefreshDataContext}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-ink/60 active:bg-mist"
+            >
+              <RefreshCw size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="关闭"
+              onClick={() => setChatOpen(false)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-ink/60 active:bg-mist"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div ref={chatScrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          {chatMessages.length === 0 && !chatSending && (
+            <div className="mt-10 text-center text-sm text-ink/40">
+              <p>向 AI 提问关于你的训练计划、动作选择或饮食建议。</p>
+              <p className="mt-1 text-xs">你的健身数据会在对话时自动作为上下文。</p>
+            </div>
+          )}
+          {chatMessages.map((m) => (
+            <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${
+                  m.role === "user" ? "bg-ocean text-mist" : "bg-surface text-ink"
+                }`}
+              >
+                {m.content}
+              </div>
+            </div>
+          ))}
+          {chatSending && (
+            <div className="flex justify-start">
+              <div className="rounded-2xl bg-surface px-3.5 py-2.5 text-sm text-ink/50">思考中…</div>
+            </div>
+          )}
+          {chatError && (
+            <p className="rounded-lg bg-coral/10 px-3 py-2 text-xs text-coral">{chatError}</p>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="safe-bottom border-t border-line bg-surface px-3 py-3">
+          <div className="flex items-end gap-2">
+            <textarea
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendChat();
+                }
+              }}
+              rows={1}
+              placeholder="输入消息…（Shift+Enter 换行）"
+              className="max-h-32 min-h-[44px] flex-1 resize-none rounded-xl bg-mist px-3 py-2.5 text-base outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleSendChat}
+              disabled={chatSending || !chatInput.trim()}
+              aria-label="发送"
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-ocean text-mist active:opacity-80 disabled:bg-slate-300"
+            >
+              <Send size={18} />
+            </button>
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 }
