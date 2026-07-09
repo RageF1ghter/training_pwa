@@ -311,8 +311,7 @@ export function SettingsView({
             <button
               type="button"
               onClick={startEdit}
-              disabled={!hasAnyData && !lastBodyProfileRecord}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-ocean py-3.5 text-base font-semibold text-mist active:opacity-80 disabled:bg-slate-300"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-ocean py-3.5 text-base font-semibold text-mist active:opacity-80"
             >
               {hasAnyData || lastBodyProfileRecord ? (
                 <>
@@ -322,7 +321,7 @@ export function SettingsView({
               ) : (
                 <>
                   <Save size={18} />
-                  保存
+                  填写数据
                 </>
               )}
             </button>
