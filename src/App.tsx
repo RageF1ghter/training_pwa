@@ -1,4 +1,4 @@
-import { Activity, CalendarDays, Camera, Flame, Settings, Sparkles, Send, RefreshCw, X } from "lucide-react";
+import { Activity, Flame, LayoutGrid, Settings, Sparkles, Send, RefreshCw, X } from "lucide-react";
 import JSZip from "jszip";
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Stat } from "./components/Stat";
@@ -28,8 +28,7 @@ import type { BodyPart, BodyProfile, BodyProfileRecord, CalendarMode, ChatMessag
 import { todayKey } from "./utils/date";
 import { makeId } from "./utils/id";
 import { groupPhotosByDate, groupWorkoutsByDate, sumCalories, sumSets } from "./utils/workouts";
-import { CalendarView } from "./views/CalendarView";
-import { PhotoView } from "./views/PhotoView";
+import { OverviewView } from "./views/OverviewView";
 import { SettingsView } from "./views/SettingsView";
 import type { DateInfo } from "./views/SettingsView";
 import { RecordView } from "./views/RecordView";
@@ -655,7 +654,7 @@ export default function App() {
             <p className="text-sm font-semibold text-ocean">
               FitLog <span className="font-normal text-ink/40">v{__APP_VERSION__}</span>
             </p>
-            <h1 className="mt-1 text-3xl font-bold tracking-normal">{calendarMode === "week" ? "本周训练记录" : "本月训练记录"}</h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-normal">训练记录</h1>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">
             <Stat label="训练" value={workouts.length} />
@@ -747,25 +746,17 @@ export default function App() {
             </div>
           </dialog>
 
-          {tab === "calendar" && (
-            <CalendarView
+          {tab === "overview" && (
+            <OverviewView
               mode={calendarMode}
               cursorDate={cursorDate}
               selectedDate={selectedDate}
               workoutsByDate={workoutsByDate}
               photosByDate={photosByDate}
+              photos={selectedPhotos}
               onModeChange={setCalendarMode}
               onCursorDateChange={setCursorDate}
               onSelectDate={selectDate}
-            />
-          )}
-
-          {tab === "photos" && (
-            <PhotoView
-              selectedDate={selectedDate}
-              photos={selectedPhotos}
-              workouts={selectedWorkouts}
-              onDateChange={selectDate}
               onUpload={handlePhotoUpload}
               onDeletePhoto={deletePhoto}
             />
@@ -790,10 +781,9 @@ export default function App() {
         </main>
       </div>
 
-      <nav className="safe-bottom fixed bottom-0 left-1/2 z-50 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-4 border-t border-line glass-strong px-5 pt-2">
+      <nav className="safe-bottom fixed bottom-0 left-1/2 z-50 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-3 border-t border-line glass-strong px-5 pt-2">
         <TabButton icon={<Activity size={21} />} label="记录" active={tab === "record"} onClick={() => setTab("record")} />
-        <TabButton icon={<CalendarDays size={21} />} label="日历" active={tab === "calendar"} onClick={() => setTab("calendar")} />
-        <TabButton icon={<Camera size={21} />} label="照片" active={tab === "photos"} onClick={() => setTab("photos")} />
+        <TabButton icon={<LayoutGrid size={21} />} label="总览" active={tab === "overview"} onClick={() => setTab("overview")} />
         <TabButton icon={<Settings size={21} />} label="设置" active={tab === "settings"} onClick={() => setTab("settings")} />
       </nav>
 

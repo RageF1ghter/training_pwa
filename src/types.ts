@@ -8,7 +8,7 @@ export type ExerciseOrderMap = Record<BodyPart, string[]>;
 
 export type CalendarMode = "week" | "month";
 
-export type Tab = "record" | "calendar" | "photos" | "settings";
+export type Tab = "record" | "overview" | "settings";
 
 export type WorkoutSet = {
   id: string;
