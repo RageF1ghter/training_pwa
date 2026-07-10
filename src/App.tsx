@@ -23,6 +23,7 @@ import { readBodyProfile, writeBodyProfile, readBodyProfileHistory, writeBodyPro
 import { readApiKey, readChatMessages, readChatSummary, writeApiKey, writeChatMessages, writeChatSummary } from "./storage/chatStorage";
 import { chat as deepseekChat, compactHistory, type ApiMessage } from "./services/deepseek";
 import { buildAIContextMarkdown } from "./utils/aiContext";
+import { renderMarkdown } from "./utils/markdown";
 import type { BodyPart, BodyProfile, BodyProfileRecord, CalendarMode, ChatMessage, ChatSummary, CustomExerciseMap, DayPhoto, ExerciseOrderMap, HiddenExerciseMap, Tab, Workout } from "./types";
 import { todayKey } from "./utils/date";
 import { makeId } from "./utils/id";
@@ -796,14 +797,14 @@ export default function App() {
         <TabButton icon={<Settings size={21} />} label="设置" active={tab === "settings"} onClick={() => setTab("settings")} />
       </nav>
 
-      {/* AI assistant floating button */}
+      {/* AI assistant floating button — positioned ~20% up from the bottom */}
       <button
         type="button"
         aria-label="AI 助手"
         onClick={() => setChatOpen(true)}
-        className="safe-bottom fixed bottom-20 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-ocean text-mist shadow-glass active:scale-95"
+        className="fixed bottom-[20vh] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-ocean text-mist shadow-glass active:scale-95"
       >
-        <Sparkles size={26} />
+        <Sparkles size={24} className="mx-auto" />
       </button>
 
       {/* AI chat dialog — centered modal, click backdrop to close */}
@@ -855,11 +856,18 @@ export default function App() {
           {chatMessages.map((m) => (
             <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${
-                  m.role === "user" ? "bg-ocean text-mist" : "bg-surface text-ink"
+                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${
+                  m.role === "user" ? "whitespace-pre-wrap bg-ocean text-mist" : "bg-surface text-ink"
                 }`}
               >
-                {m.content}
+                {m.role === "assistant" ? (
+                  <div
+                    className="chat-markdown"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
+                  />
+                ) : (
+                  m.content
+                )}
               </div>
             </div>
           ))}
