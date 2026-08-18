@@ -19,6 +19,7 @@ import {
 } from "./storage/customExerciseStorage";
 import { fileToDataUrl, getPhotos, removePhoto, savePhoto } from "./storage/photoStorage";
 import { readWorkouts, writeWorkouts } from "./storage/workoutStorage";
+import { readDraftWorkout, reconcileStaleDraft, writeDraftWorkout } from "./storage/draftWorkoutStorage";
 import { readBodyProfile, writeBodyProfile, readBodyProfileHistory, writeBodyProfileHistory } from "./storage/bodyProfileStorage";
 import { readApiKey, readChatMessages, readChatSummary, writeApiKey, writeChatMessages, writeChatSummary } from "./storage/chatStorage";
 import { chat as deepseekChat, compactHistory, type ApiMessage } from "./services/deepseek";
@@ -27,14 +28,17 @@ import { renderMarkdown } from "./utils/markdown";
 import type { BodyPart, BodyProfile, BodyProfileRecord, CalendarMode, ChatMessage, ChatSummary, CustomExerciseMap, DayPhoto, ExerciseOrderMap, HiddenExerciseMap, Tab, Workout } from "./types";
 import { todayKey } from "./utils/date";
 import { makeId } from "./utils/id";
-import { groupPhotosByDate, groupWorkoutsByDate, sumCalories, sumSets } from "./utils/workouts";
+import { cleanWorkoutExercises, groupPhotosByDate, groupWorkoutsByDate, sumCalories, sumSets } from "./utils/workouts";
 import { OverviewView } from "./views/OverviewView";
 import { SettingsView } from "./views/SettingsView";
 import type { DateInfo } from "./views/SettingsView";
 import { RecordView } from "./views/RecordView";
 
 export default function App() {
-  const [workouts, setWorkouts] = useState<Workout[]>(() => readWorkouts());
+  const [workouts, setWorkouts] = useState<Workout[]>(() => {
+    reconcileStaleDraft();
+    return readWorkouts();
+  });
   const [customExercises, setCustomExercises] = useState<CustomExerciseMap>(() => readCustomExercises());
   const [hiddenExercises, setHiddenExercises] = useState<HiddenExerciseMap>(() => readHiddenExercises());
   const [exerciseOrder, setExerciseOrder] = useState<ExerciseOrderMap>(() => readExerciseOrder());
@@ -44,7 +48,7 @@ export default function App() {
   const [apiKey, setApiKey] = useState(() => readApiKey());
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => readChatMessages());
   const [chatSummary, setChatSummary] = useState<ChatSummary | null>(() => readChatSummary());
-  const [draftWorkout, setDraftWorkout] = useState<Workout>(() => createBlankWorkout());
+  const [draftWorkout, setDraftWorkout] = useState<Workout>(() => readDraftWorkout());
   const [selectedBodyPart, setSelectedBodyPart] = useState<BodyPart>("胸部");
   const [selectedExercise, setSelectedExercise] = useState(() => exercisePresets["胸部"][0]);
   const [setWeight, setSetWeight] = useState("");
@@ -56,7 +60,7 @@ export default function App() {
   const [isResting, setIsResting] = useState(false);
   const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
   const [restSeconds, setRestSeconds] = useState(0);
-  const [selectedDate, setSelectedDate] = useState(todayKey());
+  const [selectedDate, setSelectedDate] = useState(draftWorkout.date);
   const [tab, setTab] = useState<Tab>("record");
   const [calendarMode, setCalendarMode] = useState<CalendarMode>(() => {
     try {
@@ -99,6 +103,10 @@ export default function App() {
   useEffect(() => {
     writeWorkouts(workouts);
   }, [workouts]);
+
+  useEffect(() => {
+    writeDraftWorkout(draftWorkout);
+  }, [draftWorkout]);
 
   useEffect(() => {
     writeCustomExercises(customExercises);
@@ -201,18 +209,7 @@ export default function App() {
   const selectedPhotos = photosByDate[selectedDate] || [];
 
   const saveWorkout = () => {
-    const cleanedExercises = draftWorkout.exercises
-      .map((exercise) => ({
-        ...exercise,
-        exercise: exercise.exercise.trim(),
-        sets: exercise.sets.map((set) => ({
-          ...set,
-          weight: Math.max(0, Number(set.weight) || 0),
-          reps: Math.max(0, Number(set.reps) || 0),
-          durationSeconds: Math.max(0, Number(set.durationSeconds) || 0),
-        })),
-      }))
-      .filter((exercise) => exercise.exercise && exercise.sets.length > 0);
+    const cleanedExercises = cleanWorkoutExercises(draftWorkout.exercises);
     if (cleanedExercises.length === 0) return;
 
     setCalorieDialogValue("");
@@ -220,18 +217,7 @@ export default function App() {
   };
 
   const confirmSaveWorkout = () => {
-    const cleanedExercises = draftWorkout.exercises
-      .map((exercise) => ({
-        ...exercise,
-        exercise: exercise.exercise.trim(),
-        sets: exercise.sets.map((set) => ({
-          ...set,
-          weight: Math.max(0, Number(set.weight) || 0),
-          reps: Math.max(0, Number(set.reps) || 0),
-          durationSeconds: Math.max(0, Number(set.durationSeconds) || 0),
-        })),
-      }))
-      .filter((exercise) => exercise.exercise && exercise.sets.length > 0);
+    const cleanedExercises = cleanWorkoutExercises(draftWorkout.exercises);
     if (cleanedExercises.length === 0) return;
 
     const nextWorkout = {
@@ -776,6 +762,8 @@ export default function App() {
               chatMessageCount={chatMessages.filter((m) => m.role !== "system").length}
               onExport={handleExport}
               onImport={handleImport}
+              draftSetCount={sumSets([draftWorkout])}
+              onCommitDraft={saveWorkout}
             />
           )}
         </main>

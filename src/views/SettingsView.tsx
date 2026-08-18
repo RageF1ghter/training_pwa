@@ -1,4 +1,4 @@
-import { Check, Download, Moon, Sun, Upload, Ruler, Weight, Cake, User, Pencil, Save, Target, Sparkles, Trash2, Key } from "lucide-react";
+import { Check, ClipboardList, Download, Moon, Sun, Upload, Ruler, Weight, Cake, User, Pencil, Save, Target, Sparkles, Trash2, Key } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDateLabel, fromDateKey, weekdayLabels } from "../utils/date";
 import type { BodyProfile, BodyProfileRecord, FitnessGoal, Gender } from "../types";
@@ -30,6 +30,8 @@ export function SettingsView({
   chatMessageCount,
   onExport,
   onImport,
+  draftSetCount,
+  onCommitDraft,
 }: {
   isLightTheme: boolean;
   onThemeToggle: () => void;
@@ -43,6 +45,8 @@ export function SettingsView({
   chatMessageCount: number;
   onExport: (dateKeys?: string[]) => void;
   onImport: (file: File) => Promise<{ success: boolean; message: string }>;
+  draftSetCount: number;
+  onCommitDraft: () => void;
 }) {
   const [exportMode, setExportMode] = useState<"all" | "dates">("all");
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
@@ -347,6 +351,27 @@ export function SettingsView({
           )}
         </div>
       </section>
+
+      {/* ── Unsaved workout draft ── */}
+      {draftSetCount > 0 && (
+        <section className="rounded-2xl bg-surface p-5">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink/60">
+            <ClipboardList size={16} className="text-citrus" />
+            未保存的训练草稿
+          </h3>
+          <p className="mb-4 text-sm text-ink/50">
+            检测到 {draftSetCount} 组未保存的训练记录，可将其转为正式记录。
+          </p>
+          <button
+            type="button"
+            onClick={onCommitDraft}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-ocean py-3.5 text-base font-semibold text-mist active:opacity-80"
+          >
+            <Save size={20} />
+            转为正式记录
+          </button>
+        </section>
+      )}
 
       {/* ── Export ── */}
       <section className="rounded-2xl bg-surface p-5">

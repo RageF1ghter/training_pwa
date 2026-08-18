@@ -16,7 +16,7 @@ export function writeWorkouts(workouts: Workout[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts));
 }
 
-function normalizeWorkout(value: unknown): Workout | null {
+export function normalizeWorkout(value: unknown): Workout | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
   const id = String(raw.id || crypto.randomUUID());

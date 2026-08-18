@@ -1,4 +1,19 @@
-import type { BodyPart, DayPhoto, Workout, WorkoutSet } from "../types";
+import type { BodyPart, DayPhoto, Workout, WorkoutExercise, WorkoutSet } from "../types";
+
+export function cleanWorkoutExercises(exercises: WorkoutExercise[]): WorkoutExercise[] {
+  return exercises
+    .map((exercise) => ({
+      ...exercise,
+      exercise: exercise.exercise.trim(),
+      sets: exercise.sets.map((set) => ({
+        ...set,
+        weight: Math.max(0, Number(set.weight) || 0),
+        reps: Math.max(0, Number(set.reps) || 0),
+        durationSeconds: Math.max(0, Number(set.durationSeconds) || 0),
+      })),
+    }))
+    .filter((exercise) => exercise.exercise && exercise.sets.length > 0);
+}
 
 export function sumCalories(workouts: Workout[]) {
   return workouts.reduce((total, item) => total + item.calories, 0);
