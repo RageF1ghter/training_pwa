@@ -3,6 +3,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { createPortal } from "react-dom";
 import type { PoseLandmarker } from "@mediapipe/tasks-vision";
 import { POSE_MODELS, applyPoseRuntimeOptions, createPoseLandmarker, type PoseModelKey } from "../services/poseLandmarker";
+import { PoseMovementCard } from "./PoseMovementCard";
 import {
   ANGLE_DEFS,
   clamp,
@@ -795,6 +796,9 @@ export function PoseAnalyzer() {
             <Camera size={15} aria-hidden="true" /> 保存截图
           </button>
         </div>
+
+        {/* 动作分析：本地规则引擎 + 可选 AI 点评 */}
+        <PoseMovementCard getFrames={() => framesRef.current} analyzed={analyzed} showToast={showToast} />
       </div>
 
       <input
