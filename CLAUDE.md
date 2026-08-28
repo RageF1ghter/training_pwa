@@ -20,7 +20,7 @@ FitLog is a workout-tracking PWA (React 18 + TypeScript + Vite + Tailwind CSS 3)
 
 **Three tabs**, toggled via bottom nav (`App.tsx`):
 - **Record** (`views/RecordView.tsx`) — Draft workout form with body-part selector, exercise grid (preset + custom), set timer (start/finish/reset), weight/reps dropdown selectors. A `DraftWorkoutSummary` lists added sets inline, each editable (Pencil → edit weight/reps/duration → confirm) or deletable (Trash). Completed workouts display in `WorkoutList`. Long-press (650ms) or right-click on an exercise enters edit mode with drag-to-reorder (`@dnd-kit`) and a red delete (×) badge. The set timer has a companion rest timer: after adding a set, the UI switches to "休息中" (resting) mode with its own elapsed counter and "开始下一组" (start next set) button. Saving the workout opens a calorie-entry dialog before persisting.
-- **Overview** (`views/OverviewView.tsx`) — Merged calendar + photos on a single scrolling page sharing one `selectedDate`. Top: title + week/month toggle + period totals (sets, kcal). Then the calendar grid with dot indicators (coral = workout, ocean = photo). Below: a donut chart — per-exercise distribution for the selected day (`ExercisePieChart`, click a slice → `ExerciseLineChart`), or all-history body-part distribution (`BodyPartPieChart`) when the day has no workouts. A read-only `WorkoutList` for the selected date. Finally the selected day's photo section: a 2-column grid (`aspect-[4/5]`), upload (`ImagePlus` → `handlePhotoUpload` writes to IndexedDB), and per-photo delete. Clicking a calendar cell re-renders the chart, list, and photos for that day — all driven by the shared `selectedDate`/`selectDate`.
+- **Overview** (`views/OverviewView.tsx`) — Merged calendar + photos on a single scrolling page sharing one `selectedDate`. Top: title + week/month toggle + period totals (sets, kcal). Then the calendar grid with dot indicators (coral = workout, ocean = photo). Below: a donut chart — per-exercise distribution for the selected day (`ExercisePieChart`, click a slice → `ExerciseLineChart`), or all-history body-part distribution (`BodyPartPieChart`) when the day has no workouts. A read-only `WorkoutList` for the selected date. Then the selected day's photo section: a 2-column grid (`aspect-[4/5]`), upload (`ImagePlus` → `handlePhotoUpload` writes to IndexedDB), and per-photo delete. Clicking a calendar cell re-renders the chart, list, and photos for that day — all driven by the shared `selectedDate`/`selectDate`. At the very bottom sits the collapsible **姿态分析** card (`PoseAnalyzer`).
 - **Settings** (`views/SettingsView.tsx`) — Light/dark theme toggle, body profile entry (height/weight/age/gender/goal with BMI/BMR), DeepSeek API key + chat controls, and data backup. Export supports either all data or a picked subset of dates; both produce a `fitlog-backup-YYYY-MM-DD.zip` (JSZip) containing `data.json`. Import accepts `.zip` or a raw `.json` and merges into the existing data.
 
 **Project structure:**
@@ -37,6 +37,8 @@ src/
     date.ts                        # Date key formatting, week/month math, weekday labels
     workouts.ts                    # Aggregation helpers (sumSets, sumCalories, formatDuration, groupByDate, chart data)
     aiContext.ts                   # buildAIContextMarkdown() — aggregates workouts+profile into a Markdown snapshot for AI
+    poseData.ts                    # Pose pure logic — skeleton topology, joint-angle math, frame recording, canvas drawing, video seek helpers
+    poseExport.ts                  # Pose data export — JSON / landmarks CSV / angles CSV / composed PNG snapshot
   storage/
     workoutStorage.ts              # localStorage read/write + legacy migration (normalizeWorkout)
     customExerciseStorage.ts       # Custom/hidden exercise CRUD + ordering persistence
@@ -45,6 +47,7 @@ src/
     photoStorage.ts                # IndexedDB CRUD for photos + fileToDataUrl helper
   services/
     deepseek.ts                    # DeepSeek chat-completions client (chat + compactHistory); first HTTP layer in the app
+    poseLandmarker.ts              # MediaPipe PoseLandmarker creation with fallback chain (local wasm/CDN × local/remote model × GPU/CPU); dynamic-imports @mediapipe/tasks-vision
   components/
     TabButton.tsx                  # Bottom nav tab button
     Stat.tsx                       # Stat display tile (label + value)
@@ -52,6 +55,7 @@ src/
     ExercisePieChart.tsx           # Custom SVG donut chart — per-exercise reps for a day
     BodyPartPieChart.tsx           # Custom SVG donut chart — all-history body-part reps distribution
     ExerciseLineChart.tsx          # ECharts line chart — current-vs-prev weight + rest gaps per exercise
+    PoseAnalyzer.tsx               # Collapsible pose-analysis card (local video → skeleton playback, joint angles, export)
   views/
     RecordView.tsx                 # Draft workout builder, set editing, exercise management
     OverviewView.tsx               # Merged calendar grid + charts + selected-day workouts & photos
@@ -60,6 +64,8 @@ public/
   sw.js                            # Service Worker (network-first nav, cache-first static)
   manifest.webmanifest             # PWA manifest (standalone, portrait, dark theme)
   icons/                           # App icons (180px, 512px PNG + logo)
+  models/                          # MediaPipe pose landmarker .task files (lite + full, ~15MB)
+  wasm/                            # MediaPipe tasks-vision WASM runtime (simd + nosimd, ~23MB)
 ```
 
 **Data layer:**
@@ -96,6 +102,8 @@ public/
 **Body profile flow** (`App.tsx` `saveBodyProfile`, `SettingsView.tsx` body section) — Unlike workout/exercise state which persists on every change, body profile uses explicit save. Fields (height/weight/age/gender/goal) stay read-only until the user taps "修改" (or "保存" on first entry); editing writes to a local `draft` and computes BMI / BMR (Mifflin-St Jeor) live. Goal is chosen from a fixed union (`增肌`/`减脂`/`塑形`/`增力`/`维持`) via tap-to-toggle chips; the active goal shows a hint next to it in read-only mode. "保存" commits via `saveBodyProfile()` only when `draft` differs from stored profile (`isDirty`): it normalizes/clamps, overwrites `fitlog.bodyProfile`, and appends a timestamped `BodyProfileRecord` to `fitlog.bodyProfileHistory` for trend analysis. "取消" discards. The last record's `recordedAt` shows as "最后更新".
 
 **AI assistant** (`App.tsx` chat state + callbacks, `services/deepseek.ts`, `utils/aiContext.ts`, `SettingsView.tsx` AI section) — A floating button (bottom-right, above the nav) opens a full-screen native `<dialog>` chat. The user's DeepSeek API key is entered in Settings (plaintext, `fitlog.deepseekApiKey`, never included in backups). On each send, `assembleApiMessages()` builds the request: an optional prior summary (if a compact happened), then a freshly rebuilt data snapshot via `buildAIContextMarkdown(range:"30d")`, then the persisted user/assistant turns — then calls `chat()`. **Memory & compaction**: only user/assistant turns persist; when ≥ 10 such turns accumulate (5 exchanges), `maybeCompact()` takes the older turns (keeping the latest 2), asks `compactHistory()` to summarize them into ≤300 chars, stores the result in `fitlog.chatSummary`, and deletes the summarized turns — so token usage stays bounded while retaining long-term context. Compaction failure is non-fatal (history is kept, retried next time). A "刷新数据" button re-injects fresh data via a transient assistant note; "清空对话" clears messages + summary. Inputs respect iOS rules (`text-base` ≥16px, `min-w-0`); the floating button is `h-14 w-14`.
+
+**Pose analysis** (`components/PoseAnalyzer.tsx`, bottom of Overview): local-video skeleton analysis with MediaPipe Pose Landmarker, fully ported from the standalone 姿态识别 tool. The card is collapsible; the model loads lazily on **first expand** (never on app start), and `@mediapipe/tasks-vision` is dynamic-imported so it stays a separate ~144KB chunk outside the main bundle. Creation tries a fallback chain (local wasm dir → CDN wasm × local model file → remote model × GPU → CPU delegate) in `services/poseLandmarker.ts`, so deleting the ~38MB `public/models` + `public/wasm` binaries still works online. Analysis is offline frame-by-frame (`seekTo` + `detectForVideo` on an offscreen canvas capped at 960px width) storing compact `[x,y,z,visibility]` frames in a ref (no re-render per frame); a rAF loop then syncs the timeline slider, the skeleton overlay canvas, and the 8 joint-angle chips during playback. Settings: model (lite/full), max poses, detection confidence, assumed fps, and frame step. Exports: full JSON, landmarks CSV (33 points), angles CSV, and a composed video+skeleton PNG snapshot (`utils/poseExport.ts`). The skeleton topology constant in `utils/poseData.ts` mirrors `PoseLandmarker.POSE_CONNECTIONS` so drawing never needs the MediaPipe import. Collapsing the card keeps the video and analysis alive (CSS `hidden`, not unmount); switching tabs unmounts OverviewView and discards them.
 
 **Exercise edit mode** (`RecordView.tsx:117-129, 172-179`):
 - Entered via long-press (650ms `setTimeout` on pointerdown) or right-click (`onContextMenu`).

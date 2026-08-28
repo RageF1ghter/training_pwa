@@ -3,6 +3,7 @@ import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { BodyPartPieChart } from "../components/BodyPartPieChart";
 import { ExerciseLineChart } from "../components/ExerciseLineChart";
 import { ExercisePieChart } from "../components/ExercisePieChart";
+import { PoseAnalyzer } from "../components/PoseAnalyzer";
 import { Stat } from "../components/Stat";
 import { WorkoutList } from "../components/WorkoutList";
 import type { CalendarMode, DayPhoto, Workout } from "../types";
@@ -265,6 +266,9 @@ export function OverviewView({
           </div>
         )}
       </div>
+
+      {/* Pose analysis for local videos */}
+      <PoseAnalyzer />
     </section>
   );
 }
