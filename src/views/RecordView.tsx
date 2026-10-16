@@ -11,7 +11,8 @@ import {
 import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Check, Pencil, Play, Plus, RotateCcw, Save, Square, Trash2, X } from "lucide-react";
-import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from "react";
+import { type Dispatch, type SetStateAction, Fragment, useEffect, useRef, useState } from "react";
+import { RestInterval } from "../components/RestInterval";
 import { WorkoutList } from "../components/WorkoutList";
 import { bodyParts, exercisePresets } from "../data/exercises";
 import type { BodyPart, CustomExerciseMap, ExerciseOrderMap, HiddenExerciseMap, Workout, WorkoutSet } from "../types";
@@ -586,107 +587,108 @@ function DraftWorkoutSummary({
               const setKey = `${exercise.id}:${set.id}`;
               const isEditing = editingSetId === setKey;
 
-              if (isEditing) {
-                return (
-                  <div key={set.id} className="space-y-3 rounded-[8px] bg-mist px-3 py-3">
-                    <p className="text-sm font-semibold text-ink/50">{index + 1}组 · 编辑中</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="block">
-                        <span className="text-xs text-ink/50">重量</span>
-                        <select
-                          value={editWeightRaw}
-                          onChange={(e) => setEditWeightRaw(e.target.value)}
-                          className="mt-1 h-11 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none"
-                          aria-label="重量"
-                        >
-                          <option value="">0 kg</option>
-                          {WEIGHT_OPTIONS.map((w) => (
-                            <option key={w} value={w}>
-                              {w} kg
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="block">
-                        <span className="text-xs text-ink/50">次数</span>
-                        <select
-                          value={editRepsRaw}
-                          onChange={(e) => setEditRepsRaw(e.target.value)}
-                          className="mt-1 h-11 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none"
-                          aria-label="次数"
-                        >
-                          <option value="">0 次</option>
-                          {REP_OPTIONS.map((r) => (
-                            <option key={r} value={r}>
-                              {r} 次
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    <label className="block">
-                      <span className="text-xs text-ink/50">持续时间（秒）</span>
-                      <div className="mt-1 flex items-center gap-1 rounded-[8px] border border-line bg-mist px-3">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={editDurationRaw}
-                          onChange={(e) => setEditDurationRaw(e.target.value.replace(/[^0-9]/g, ""))}
-                          className="h-11 min-w-0 flex-1 bg-transparent text-base outline-none"
-                          aria-label="持续时间（秒）"
-                        />
-                        <span className="text-sm text-ink/50">秒</span>
-                      </div>
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => saveEdit(exercise.id, set.id)}
-                        className="flex h-11 items-center justify-center gap-1 rounded-[8px] bg-ocean text-sm font-semibold text-white"
-                        aria-label="确认修改"
-                      >
-                        <Check size={16} aria-hidden="true" />
-                        确认
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEditing}
-                        className="flex h-11 items-center justify-center gap-1 rounded-[8px] border border-line bg-mist text-sm font-semibold text-ink/60"
-                        aria-label="取消修改"
-                      >
-                        <X size={16} aria-hidden="true" />
-                        取消
-                      </button>
-                    </div>
-                  </div>
-                );
-              }
-
               return (
-                <div key={set.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-1 rounded-[8px] bg-mist px-3 py-2">
-                  <span className="text-sm font-semibold text-ink/60">
-                    {index + 1}组 · {set.weight}kg · {set.reps}次 · {formatDuration(set.durationSeconds)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => startEditing(exercise.id, set)}
-                    className="flex h-11 w-11 items-center justify-center rounded-[8px] text-ocean"
-                    aria-label="编辑当前组"
-                    title="编辑当前组"
-                  >
-                    <Pencil size={16} aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteSet(exercise.id, set.id)}
-                    className="flex h-11 w-11 items-center justify-center rounded-[8px] text-coral"
-                    aria-label="删除当前组"
-                    title="删除当前组"
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                  </button>
-                </div>
+                <Fragment key={set.id}>
+                  <RestInterval previousSet={exercise.sets[index - 1]} set={set} />
+                  {isEditing ? (
+                    <div className="space-y-3 rounded-[8px] bg-mist px-3 py-3">
+                      <p className="text-sm font-semibold text-ink/50">{index + 1}组 · 编辑中</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block">
+                          <span className="text-xs text-ink/50">重量</span>
+                          <select
+                            value={editWeightRaw}
+                            onChange={(e) => setEditWeightRaw(e.target.value)}
+                            className="mt-1 h-11 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none"
+                            aria-label="重量"
+                          >
+                            <option value="">0 kg</option>
+                            {WEIGHT_OPTIONS.map((w) => (
+                              <option key={w} value={w}>
+                                {w} kg
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block">
+                          <span className="text-xs text-ink/50">次数</span>
+                          <select
+                            value={editRepsRaw}
+                            onChange={(e) => setEditRepsRaw(e.target.value)}
+                            className="mt-1 h-11 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none"
+                            aria-label="次数"
+                          >
+                            <option value="">0 次</option>
+                            {REP_OPTIONS.map((r) => (
+                              <option key={r} value={r}>
+                                {r} 次
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <label className="block">
+                        <span className="text-xs text-ink/50">持续时间（秒）</span>
+                        <div className="mt-1 flex items-center gap-1 rounded-[8px] border border-line bg-mist px-3">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={editDurationRaw}
+                            onChange={(e) => setEditDurationRaw(e.target.value.replace(/[^0-9]/g, ""))}
+                            className="h-11 min-w-0 flex-1 bg-transparent text-base outline-none"
+                            aria-label="持续时间（秒）"
+                          />
+                          <span className="text-sm text-ink/50">秒</span>
+                        </div>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => saveEdit(exercise.id, set.id)}
+                          className="flex h-11 items-center justify-center gap-1 rounded-[8px] bg-ocean text-sm font-semibold text-white"
+                          aria-label="确认修改"
+                        >
+                          <Check size={16} aria-hidden="true" />
+                          确认
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditing}
+                          className="flex h-11 items-center justify-center gap-1 rounded-[8px] border border-line bg-mist text-sm font-semibold text-ink/60"
+                          aria-label="取消修改"
+                        >
+                          <X size={16} aria-hidden="true" />
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-1 rounded-[8px] bg-mist px-3 py-2">
+                      <span className="text-sm font-semibold text-ink/60">
+                        {index + 1}组 · {set.weight}kg · {set.reps}次 · {formatDuration(set.durationSeconds)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => startEditing(exercise.id, set)}
+                        className="flex h-11 w-11 items-center justify-center rounded-[8px] text-ocean"
+                        aria-label="编辑当前组"
+                        title="编辑当前组"
+                      >
+                        <Pencil size={16} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteSet(exercise.id, set.id)}
+                        className="flex h-11 w-11 items-center justify-center rounded-[8px] text-coral"
+                        aria-label="删除当前组"
+                        title="删除当前组"
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                  )}
+                </Fragment>
               );
             })}
           </div>

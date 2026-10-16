@@ -1,11 +1,13 @@
 import { Camera, ChevronLeft, ChevronRight, ImagePlus, Trash2 } from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { BodyPartIcon } from "../components/BodyPartIcon";
 import { BodyPartPieChart } from "../components/BodyPartPieChart";
 import { ExerciseLineChart } from "../components/ExerciseLineChart";
 import { ExercisePieChart } from "../components/ExercisePieChart";
 import { PoseAnalyzer } from "../components/PoseAnalyzer";
 import { Stat } from "../components/Stat";
 import { WorkoutList } from "../components/WorkoutList";
+import { bodyParts } from "../data/exercises";
 import type { CalendarMode, DayPhoto, Workout } from "../types";
 import {
   addDays,
@@ -170,6 +172,10 @@ export function OverviewView({
           {days.map((day) => {
             const key = toDateKey(day);
             const dayWorkouts = workoutsByDate[key] || [];
+            const trainedParts = new Set(
+              dayWorkouts.flatMap((workout) => workout.exercises.filter((exercise) => exercise.sets.length > 0).map((exercise) => exercise.bodyPart)),
+            );
+            const dayBodyParts = bodyParts.filter((part) => trainedParts.has(part));
             const dayPhotos = photosByDate[key] || [];
             const inMonth = day.getMonth() === cursorDate.getMonth();
             const isSelected = key === selectedDate;
@@ -178,23 +184,38 @@ export function OverviewView({
                 key={key}
                 type="button"
                 onClick={() => onSelectDate(key)}
-                className={`aspect-square rounded-[8px] border p-1 text-left ${
+                className={`flex min-h-[88px] min-w-0 flex-col items-start rounded-[8px] border p-0.5 text-left ${
                   isSelected
                     ? "border-ocean bg-ocean text-white"
                     : inMonth || mode === "week"
                       ? "border-line bg-mist"
                       : "border-transparent bg-transparent text-ink/20"
                 }`}
-                aria-label={`${key} 训练 ${dayWorkouts.length} 次`}
+                aria-label={`${key} 训练 ${dayWorkouts.length} 次${dayBodyParts.length ? `，${dayBodyParts.join("、")}` : ""}${dayPhotos.length ? `，照片 ${dayPhotos.length} 张` : ""}`}
               >
-                <span className="text-sm font-bold">{day.getDate()}</span>
-                <div className="mt-1 flex min-h-[14px] gap-1">
-                  {dayWorkouts.length > 0 && <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-mist" : "bg-coral"}`} />}
-                  {dayPhotos.length > 0 && <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-citrus" : "bg-ocean"}`} />}
+                <span className="flex w-full items-center justify-between px-0.5 text-sm font-bold">
+                  {day.getDate()}
+                  {dayPhotos.length > 0 && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isSelected ? "bg-citrus" : "bg-ocean"}`} aria-hidden="true" />}
+                </span>
+                <div className="flex w-full flex-1 flex-col items-center justify-center gap-0.5" aria-hidden="true">
+                  {dayBodyParts.slice(0, 2).map((part) => (
+                    <BodyPartIcon key={part} bodyPart={part} size={48} fitContainer className={isSelected ? "text-mist" : "text-coral"} />
+                  ))}
+                  {dayBodyParts.length > 2 && (
+                    <span className={`text-xs leading-[14px] ${isSelected ? "text-mist" : "text-coral"}`}>+{dayBodyParts.length - 2}</span>
+                  )}
                 </div>
               </button>
             );
           })}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-2 border-t border-line pt-3" aria-label="训练部位图例">
+          {bodyParts.map((part) => (
+            <span key={part} className="inline-flex items-center gap-1 text-xs text-ink/60">
+              <BodyPartIcon bodyPart={part} size={24} className="text-coral" />
+              {part}
+            </span>
+          ))}
         </div>
       </div>
 

@@ -1,6 +1,8 @@
 import { Activity, Trash2 } from "lucide-react";
+import { Fragment } from "react";
 import type { Workout } from "../types";
 import { countWorkoutReps, countWorkoutSets, formatDuration } from "../utils/workouts";
+import { RestInterval } from "./RestInterval";
 
 export function WorkoutList({
   workouts,
@@ -54,11 +56,14 @@ export function WorkoutList({
                 <p className="text-sm font-semibold text-ink/80">
                   {exercise.bodyPart} · {exercise.exercise}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 space-y-1">
                   {exercise.sets.map((set, index) => (
-                    <span key={set.id} className="rounded-[8px] bg-glass backdrop-blur-sm px-2.5 py-1.5 text-xs font-semibold text-ink/60">
-                      {index + 1}组 {set.weight}kg {set.reps}次 {formatDuration(set.durationSeconds)}
-                    </span>
+                    <Fragment key={set.id}>
+                      <RestInterval previousSet={exercise.sets[index - 1]} set={set} />
+                      <div className="rounded-[8px] bg-glass backdrop-blur-sm px-2.5 py-1.5 text-xs font-semibold text-ink/60">
+                        {index + 1}组 {set.weight}kg {set.reps}次 {formatDuration(set.durationSeconds)}
+                      </div>
+                    </Fragment>
                   ))}
                 </div>
               </div>
