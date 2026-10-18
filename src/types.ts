@@ -15,6 +15,8 @@ export type WorkoutSet = {
   weight: number;
   reps: number;
   durationSeconds: number;
+  // 有氧骑行类动作按「时间+距离」记录，均速由距离/时长推算。
+  distanceKm?: number;
   startedAt?: number;
   finishedAt?: number;
 };

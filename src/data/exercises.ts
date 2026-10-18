@@ -9,6 +9,13 @@ export const exercisePresets = {
   肩部: ["肩推", "哑铃侧平举", "俯身飞鸟", "阿诺德推举", "面拉", "杠铃推举"],
   手臂: ["杠铃弯举", "哑铃弯举", "绳索下压", "窄距卧推", "锤式弯举", "臂屈伸"],
   核心: ["卷腹", "平板支撑", "俄罗斯转体", "悬垂举腿", "死虫", "登山跑"],
-  有氧: ["跑步", "椭圆机", "动感单车", "划船机", "跳绳", "爬坡走"],
+  有氧: ["跑步", "骑行", "椭圆机", "动感单车", "划船机", "跳绳", "爬坡走"],
   全身: ["波比跳", "壶铃摆动", "战绳", "农夫行走", "推雪橇", "综合循环"],
 } satisfies Record<BodyPart, string[]>;
+
+const DISTANCE_CARDIO_PATTERN = /骑行|骑车/;
+
+// 有氧下的骑行类动作（含自定义名称，如「公路骑行」）按「时间+距离+均速」记录。
+export function isDistanceCardio(bodyPart: BodyPart, exercise: string): boolean {
+  return bodyPart === "有氧" && DISTANCE_CARDIO_PATTERN.test(exercise);
+}

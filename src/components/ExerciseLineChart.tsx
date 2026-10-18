@@ -2,7 +2,7 @@ import * as echarts from "echarts";
 import { X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { formatDateLabel } from "../utils/date";
-import { formatDuration, formatRestGap, type EnrichedSet } from "../utils/workouts";
+import { averageSpeedKmh, formatDuration, formatRestGap, isDistanceSet, type EnrichedSet } from "../utils/workouts";
 
 function readCssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "";
@@ -131,20 +131,27 @@ export function ExerciseLineChart({
 
   const totalSets = currentSets.length;
   const totalReps = useMemo(() => currentSets.reduce((s, set) => s + set.reps, 0), [currentSets]);
+  // 有氧骑行类动作按「时间+距离」记录，主指标切换为距离。
+  const distanceMode = useMemo(() => currentSets.some(isDistanceSet), [currentSets]);
 
   // x-axis: set positions from the current workout
   const xLabels = useMemo(() => {
     if (currentSets.length === 0) return [];
-    return currentSets.map((_, i) => `组${i + 1}`);
-  }, [currentSets]);
+    return currentSets.map((_, i) => `${distanceMode ? "段" : "组"}${i + 1}`);
+  }, [currentSets, distanceMode]);
 
-  // Current weight per set
-  const weightData = useMemo(() => currentSets.map((s) => s.weight), [currentSets]);
+  // Current primary metric (weight, or distance for cardio rides) per set
+  const primaryData = useMemo(
+    () => currentSets.map((s) => (distanceMode ? s.distanceKm ?? 0 : s.weight)),
+    [currentSets, distanceMode],
+  );
 
-  // Previous workout weight, aligned by set position
-  const prevWeightData = useMemo(() => {
-    return currentSets.map((_, i) => (i < prevSets.length ? prevSets[i].weight : null));
-  }, [currentSets, prevSets]);
+  // Previous workout primary metric, aligned by set position
+  const prevPrimaryData = useMemo(() => {
+    return currentSets.map((_, i) =>
+      i < prevSets.length ? (distanceMode ? prevSets[i].distanceKm ?? 0 : prevSets[i].weight) : null,
+    );
+  }, [currentSets, prevSets, distanceMode]);
 
   // Rest gaps for current workout (null for first set).
   // Unreasonable values (> 30 min) are replaced via linear interpolation for display only.
@@ -177,15 +184,18 @@ export function ExerciseLineChart({
     const coral30 = readCssRGBA("--coral-rgb", 0.30);
     const citrus = readCssVar("--color-citrus") || "#FFEA00";
 
+    const primaryName = distanceMode ? "本次距离" : "本次重量";
+    const primaryUnit = distanceMode ? "km" : "kg";
+
     const legendData = hasPrevData
-      ? ["本次重量", `上次 (${formatDateLabel(prevWorkoutDate!)})`, "休息"]
-      : ["本次重量", "休息"];
+      ? [primaryName, `上次 (${formatDateLabel(prevWorkoutDate!)})`, "休息"]
+      : [primaryName, "休息"];
 
     const series: echarts.SeriesOption[] = [
       {
-        name: "本次重量",
+        name: primaryName,
         type: "line",
-        data: weightData,
+        data: primaryData,
         smooth: true,
         symbol: "circle",
         symbolSize: 8,
@@ -214,12 +224,12 @@ export function ExerciseLineChart({
       },
     ];
 
-    // Insert previous weight as second series when available
+    // Insert previous primary metric as second series when available
     if (hasPrevData) {
       series.splice(1, 0, {
         name: `上次 (${formatDateLabel(prevWorkoutDate!)})`,
         type: "line",
-        data: prevWeightData,
+        data: prevPrimaryData,
         smooth: true,
         symbol: "diamond",
         symbolSize: 9,
@@ -250,13 +260,11 @@ export function ExerciseLineChart({
               .filter((p) => p.value !== null)
               .map((p) => {
                 const val =
-                  p.seriesName.startsWith("上次")
-                    ? `${p.value} kg`
+                  p.seriesName.startsWith("上次") || p.seriesName === primaryName
+                    ? `${p.value} ${primaryUnit}`
                     : p.seriesName === "休息"
                       ? formatRestGap(p.value as number)
-                      : p.seriesName === "本次重量"
-                        ? `${p.value} kg`
-                        : String(p.value);
+                      : String(p.value);
                 return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;"></span>${p.seriesName}: <b>${val}</b>`;
               });
             return `<div style="font-weight:600;margin-bottom:4px;">${params[0]?.axisValue ?? ""}</div>${lines.join("<br>")}`;
@@ -287,7 +295,7 @@ export function ExerciseLineChart({
         yAxis: [
           {
             type: "value",
-            name: "重量 (kg)",
+            name: distanceMode ? "距离 (km)" : "重量 (kg)",
             nameTextStyle: { color: ocean, fontSize: 11, fontWeight: "bold" },
             splitLine: { lineStyle: { color: ocean15, type: "dashed" } },
             axisLabel: { color: ocean, fontSize: 10, fontWeight: "bold" },
@@ -313,7 +321,7 @@ export function ExerciseLineChart({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [xLabels, weightData, restGapData, prevWeightData, hasPrevData, prevWorkoutDate]);
+  }, [xLabels, primaryData, restGapData, prevPrimaryData, hasPrevData, prevWorkoutDate, distanceMode]);
 
   useEffect(() => {
     return () => {
@@ -326,6 +334,7 @@ export function ExerciseLineChart({
     () => currentSets.reduce((s, set) => s + Math.max(set.computedDuration ?? set.durationSeconds, 0), 0),
     [currentSets],
   );
+  const totalDistance = useMemo(() => currentSets.reduce((s, set) => s + (set.distanceKm ?? 0), 0), [currentSets]);
 
   return (
     <div className="space-y-4 rounded-[8px] border border-line bg-glass backdrop-blur-md p-4">
@@ -333,7 +342,9 @@ export function ExerciseLineChart({
         <div>
           <h3 className="text-lg font-bold">{exerciseName}</h3>
           <p className="mt-1 text-sm text-ink/50">
-            {totalSets} 组 · {totalReps} 次 · {formatDuration(totalDuration)}
+            {distanceMode
+              ? `${totalSets} 段 · ${totalDistance.toFixed(1)} km · 均速 ${averageSpeedKmh(totalDistance, totalDuration).toFixed(1)} km/h · ${formatDuration(totalDuration)}`
+              : `${totalSets} 组 · ${totalReps} 次 · ${formatDuration(totalDuration)}`}
           </p>
         </div>
         <button
@@ -349,7 +360,7 @@ export function ExerciseLineChart({
 
       {!hasPrevData && (
         <p className="rounded-[8px] bg-ocean/5 px-3 py-2 text-xs text-ocean">
-          没有更早的训练记录可对比，上次重量将在下次训练时显示。
+          没有更早的训练记录可对比，上次{distanceMode ? "距离" : "重量"}将在下次训练时显示。
         </p>
       )}
 

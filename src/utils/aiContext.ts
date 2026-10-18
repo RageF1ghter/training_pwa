@@ -1,5 +1,5 @@
 import type { BodyProfile, BodyProfileRecord, FitnessGoal, Gender, Workout } from "../types";
-import { aggregateBodyPartReps, aggregateExerciseReps, getExerciseSetsWithDetails, sumCalories, sumSets } from "./workouts";
+import { aggregateBodyPartReps, aggregateExerciseReps, averageSpeedKmh, getExerciseSetsWithDetails, sumCalories, sumSets } from "./workouts";
 import { fromDateKey } from "./date";
 
 export type AIRange = "7d" | "30d" | "all";
@@ -74,8 +74,15 @@ export function buildAIContextMarkdown(args: {
     lines.push("## 重点动作强度趋势");
     for (const ex of top) {
       const series = getExerciseSetsWithDetails(workouts, ex.exercise);
+      const distanceBased = series.some((group) => group.sets.some((s) => (s.distanceKm ?? 0) > 0));
       const trend = series
         .map((group) => {
+          if (distanceBased) {
+            const distance = group.sets.reduce((sum, s) => sum + (s.distanceKm ?? 0), 0);
+            const seconds = group.sets.reduce((sum, s) => sum + Math.max(s.computedDuration ?? s.durationSeconds, 0), 0);
+            if (distance <= 0) return null;
+            return `${formatMD(group.workoutDate)} ${distance.toFixed(1)}km@${averageSpeedKmh(distance, seconds).toFixed(1)}km/h`;
+          }
           const top = group.sets
             .map((s) => ({ w: s.weight, r: s.reps }))
             .sort((a, b) => b.w - a.w)[0];

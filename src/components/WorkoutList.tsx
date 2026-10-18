@@ -1,7 +1,7 @@
 import { Activity, Trash2 } from "lucide-react";
 import { Fragment } from "react";
 import type { Workout } from "../types";
-import { countWorkoutReps, countWorkoutSets, formatDuration } from "../utils/workouts";
+import { countWorkoutReps, countWorkoutSets, averageSpeedKmh, formatDuration, isDistanceSet } from "../utils/workouts";
 import { RestInterval } from "./RestInterval";
 
 export function WorkoutList({
@@ -61,7 +61,9 @@ export function WorkoutList({
                     <Fragment key={set.id}>
                       <RestInterval previousSet={exercise.sets[index - 1]} set={set} />
                       <div className="rounded-[8px] bg-glass backdrop-blur-sm px-2.5 py-1.5 text-xs font-semibold text-ink/60">
-                        {index + 1}组 {set.weight}kg {set.reps}次 {formatDuration(set.durationSeconds)}
+                        {isDistanceSet(set)
+                          ? `${index + 1}组 ${formatDuration(set.durationSeconds)} · ${set.distanceKm}km · 均速 ${averageSpeedKmh(set.distanceKm!, set.durationSeconds).toFixed(1)}km/h`
+                          : `${index + 1}组 ${set.weight}kg ${set.reps}次 ${formatDuration(set.durationSeconds)}`}
                       </div>
                     </Fragment>
                   ))}

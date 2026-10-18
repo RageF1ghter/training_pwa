@@ -78,6 +78,7 @@ function normalizeWorkoutSet(value: unknown): Workout["exercises"][number]["sets
     weight: Math.max(0, Number(raw.weight) || 0),
     reps: Math.max(0, Number(raw.reps) || 0),
     durationSeconds: Math.max(0, Number(raw.durationSeconds) || 0),
+    distanceKm: Math.max(0, Number(raw.distanceKm) || 0) || undefined,
     startedAt: typeof raw.startedAt === "number" ? raw.startedAt : undefined,
     finishedAt: typeof raw.finishedAt === "number" ? raw.finishedAt : undefined,
   };

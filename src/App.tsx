@@ -3,7 +3,7 @@ import JSZip from "jszip";
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Stat } from "./components/Stat";
 import { TabButton } from "./components/TabButton";
-import { exercisePresets } from "./data/exercises";
+import { exercisePresets, isDistanceCardio } from "./data/exercises";
 import { createBlankWorkout } from "./factories/workout";
 import {
   addCustomExercise,
@@ -53,6 +53,7 @@ export default function App() {
   const [selectedExercise, setSelectedExercise] = useState(() => exercisePresets["胸部"][0]);
   const [setWeight, setSetWeight] = useState("");
   const [setReps, setSetReps] = useState("10");
+  const [setDistance, setSetDistance] = useState("");
   const [timerStartedAt, setTimerStartedAt] = useState<number | null>(null);
   const [setStartTimestamp, setSetStartTimestamp] = useState<number | null>(null);
   const [setFinishTimestamp, setSetFinishTimestamp] = useState<number | null>(null);
@@ -277,6 +278,7 @@ export default function App() {
     setSetStartTimestamp(null);
     setSetFinishTimestamp(null);
     setElapsedSeconds(0);
+    setSetDistance("");
     setIsResting(false);
     setRestStartedAt(null);
     setRestSeconds(0);
@@ -284,14 +286,17 @@ export default function App() {
 
   const addSetToDraftWorkout = () => {
     const exerciseName = selectedExercise.trim();
-    if (!exerciseName || elapsedSeconds <= 0 || Number(setReps) <= 0) return;
+    const distanceMode = isDistanceCardio(selectedBodyPart, exerciseName);
+    if (!exerciseName || elapsedSeconds <= 0) return;
+    if (distanceMode ? !(Number(setDistance) > 0) : !(Number(setReps) > 0)) return;
 
     setDraftWorkout((current) => {
       const nextSet = {
         id: makeId(),
-        weight: Math.max(0, Number(setWeight) || 0),
-        reps: Math.max(0, Number(setReps) || 0),
+        weight: distanceMode ? 0 : Math.max(0, Number(setWeight) || 0),
+        reps: distanceMode ? 0 : Math.max(0, Number(setReps) || 0),
         durationSeconds: Math.max(0, Number(elapsedSeconds) || 0),
+        distanceKm: distanceMode ? Math.max(0, Number(setDistance) || 0) : undefined,
         startedAt: setStartTimestamp ?? undefined,
         finishedAt: setFinishTimestamp ?? undefined,
       };
@@ -322,6 +327,8 @@ export default function App() {
       };
     });
     resetCurrentSet();
+    // 有氧骑行按「段」记录，段与段之间不进入组间休息计时。
+    if (distanceMode) return;
     setIsResting(true);
     setRestStartedAt(Date.now());
     setRestSeconds(0);
@@ -336,7 +343,11 @@ export default function App() {
     }));
   };
 
-  const updateDraftSet = (exerciseId: string, setId: string, updates: { weight: number; reps: number; durationSeconds: number }) => {
+  const updateDraftSet = (
+    exerciseId: string,
+    setId: string,
+    updates: { weight: number; reps: number; durationSeconds: number; distanceKm?: number },
+  ) => {
     setDraftWorkout((current) => ({
       ...current,
       exercises: current.exercises.map((exercise) =>
@@ -345,7 +356,14 @@ export default function App() {
               ...exercise,
               sets: exercise.sets.map((set) =>
                 set.id === setId
-                  ? { ...set, weight: updates.weight, reps: updates.reps, durationSeconds: updates.durationSeconds, finishedAt: set.startedAt != null ? set.startedAt + updates.durationSeconds * 1000 : set.finishedAt }
+                  ? {
+                      ...set,
+                      weight: updates.weight,
+                      reps: updates.reps,
+                      durationSeconds: updates.durationSeconds,
+                      distanceKm: updates.distanceKm ?? set.distanceKm,
+                      finishedAt: set.startedAt != null ? set.startedAt + updates.durationSeconds * 1000 : set.finishedAt,
+                    }
                   : set,
               ),
             }
@@ -657,6 +675,7 @@ export default function App() {
               selectedExercise={selectedExercise}
               setWeight={setWeight}
               setReps={setReps}
+              setDistance={setDistance}
               elapsedSeconds={elapsedSeconds}
               timerStartedAt={timerStartedAt}
               isResting={isResting}
@@ -671,6 +690,7 @@ export default function App() {
               onSelectedExerciseChange={setSelectedExercise}
               onSetWeightChange={setSetWeight}
               onSetRepsChange={setSetReps}
+              onSetDistanceChange={setSetDistance}
               onStartSetTimer={startSetTimer}
               onFinishSetTimer={finishSetTimer}
               onResetCurrentSet={resetCurrentSet}

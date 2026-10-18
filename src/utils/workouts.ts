@@ -10,6 +10,7 @@ export function cleanWorkoutExercises(exercises: WorkoutExercise[]): WorkoutExer
         weight: Math.max(0, Number(set.weight) || 0),
         reps: Math.max(0, Number(set.reps) || 0),
         durationSeconds: Math.max(0, Number(set.durationSeconds) || 0),
+        distanceKm: Math.max(0, Number(set.distanceKm) || 0) || undefined,
       })),
     }))
     .filter((exercise) => exercise.exercise && exercise.sets.length > 0);
@@ -39,6 +40,15 @@ export function formatDuration(seconds: number) {
   const minutes = Math.floor(safeSeconds / 60);
   const remainingSeconds = `${safeSeconds % 60}`.padStart(2, "0");
   return `${minutes}:${remainingSeconds}`;
+}
+
+export function isDistanceSet(set: Pick<WorkoutSet, "distanceKm">): boolean {
+  return (set.distanceKm ?? 0) > 0;
+}
+
+export function averageSpeedKmh(distanceKm: number, durationSeconds: number): number {
+  if (distanceKm <= 0 || durationSeconds <= 0) return 0;
+  return (distanceKm / durationSeconds) * 3600;
 }
 
 export function groupWorkoutsByDate(workouts: Workout[]) {

@@ -14,10 +14,10 @@ import { Check, Pencil, Play, Plus, RotateCcw, Save, Square, Trash2, X } from "l
 import { type Dispatch, type SetStateAction, Fragment, useEffect, useRef, useState } from "react";
 import { RestInterval } from "../components/RestInterval";
 import { WorkoutList } from "../components/WorkoutList";
-import { bodyParts, exercisePresets } from "../data/exercises";
+import { bodyParts, exercisePresets, isDistanceCardio } from "../data/exercises";
 import type { BodyPart, CustomExerciseMap, ExerciseOrderMap, HiddenExerciseMap, Workout, WorkoutSet } from "../types";
 import { formatDateLabel } from "../utils/date";
-import { countWorkoutReps, countWorkoutSets, formatDuration } from "../utils/workouts";
+import { averageSpeedKmh, countWorkoutReps, countWorkoutSets, formatDuration, isDistanceSet } from "../utils/workouts";
 
 const WEIGHT_OPTIONS = Array.from({ length: 81 }, (_, i) => String(i * 2.5));
 const REP_OPTIONS = Array.from({ length: 51 }, (_, i) => String(i));
@@ -28,6 +28,7 @@ export function RecordView({
   selectedExercise,
   setWeight,
   setReps,
+  setDistance,
   elapsedSeconds,
   timerStartedAt,
   isResting,
@@ -42,6 +43,7 @@ export function RecordView({
   onSelectedExerciseChange,
   onSetWeightChange,
   onSetRepsChange,
+  onSetDistanceChange,
   onStartSetTimer,
   onFinishSetTimer,
   onResetCurrentSet,
@@ -60,6 +62,7 @@ export function RecordView({
   selectedExercise: string;
   setWeight: string;
   setReps: string;
+  setDistance: string;
   elapsedSeconds: number;
   timerStartedAt: number | null;
   isResting: boolean;
@@ -74,13 +77,14 @@ export function RecordView({
   onSelectedExerciseChange: (exercise: string) => void;
   onSetWeightChange: (weight: string) => void;
   onSetRepsChange: (reps: string) => void;
+  onSetDistanceChange: (distance: string) => void;
   onStartSetTimer: () => void;
   onFinishSetTimer: () => void;
   onResetCurrentSet: () => void;
   onSave: () => void;
   onAddSet: () => void;
   onDeleteDraftSet: (exerciseId: string, setId: string) => void;
-  onUpdateDraftSet: (exerciseId: string, setId: string, updates: { weight: number; reps: number; durationSeconds: number }) => void;
+  onUpdateDraftSet: (exerciseId: string, setId: string, updates: { weight: number; reps: number; durationSeconds: number; distanceKm?: number }) => void;
   onAddCustomExercise: (bodyPart: BodyPart, exercise: string) => void;
   onDeleteCustomExercise: (bodyPart: BodyPart, exercise: string) => void;
   onReorderExercises: (bodyPart: BodyPart, exercises: string[]) => void;
@@ -88,7 +92,11 @@ export function RecordView({
   onDateChange: (dateKey: string) => void;
 }) {
   const presets = exercisePresets[selectedBodyPart].filter((exercise) => !hiddenExercises[selectedBodyPart].includes(exercise));
-  const knownExercises = orderExercises([...presets, ...customExercises[selectedBodyPart]], exerciseOrder[selectedBodyPart]);
+  // 去重以防自定义动作与预设同名（如保存旧数据时已添加过「骑行」）。
+  const knownExercises = orderExercises(
+    [...new Set([...presets, ...customExercises[selectedBodyPart]])],
+    exerciseOrder[selectedBodyPart],
+  );
   const [isAddingCustomExercise, setIsAddingCustomExercise] = useState(false);
   const [customExerciseDraft, setCustomExerciseDraft] = useState("");
   const [isEditMode, setIsEditMode] = useState(false);
@@ -96,7 +104,12 @@ export function RecordView({
   const [activeDragExercise, setActiveDragExercise] = useState<string | null>(null);
   const customExerciseName = customExerciseDraft.trim();
   const canAddCustomExercise = customExerciseName.length > 0 && !knownExercises.includes(customExerciseName);
-  const canAddSet = selectedExercise.trim().length > 0 && elapsedSeconds > 0 && Number(setReps) > 0 && timerStartedAt === null;
+  const isDistanceMode = isDistanceCardio(selectedBodyPart, selectedExercise);
+  const canAddSet =
+    selectedExercise.trim().length > 0 &&
+    elapsedSeconds > 0 &&
+    timerStartedAt === null &&
+    (isDistanceMode ? Number(setDistance) > 0 : Number(setReps) > 0);
   const canSave = countWorkoutSets(draftWorkout) > 0;
   const customInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
@@ -376,38 +389,42 @@ export function RecordView({
               <div className="rounded-[8px] bg-coral/10 px-3 py-2 text-lg font-bold tabular-nums text-coral">{formatDuration(restSeconds)}</div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block">
-                <span className="text-sm font-semibold">重量</span>
-                <select
-                  value={setWeight}
-                  onChange={(event) => onSetWeightChange(event.target.value)}
-                  className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
-                >
-                  <option value="">0 kg</option>
-                  {WEIGHT_OPTIONS.map((w) => (
-                    <option key={w} value={w}>
-                      {w} kg
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold">次数</span>
-                <select
-                  value={setReps}
-                  onChange={(event) => onSetRepsChange(event.target.value)}
-                  className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
-                >
-                  <option value="">0 次</option>
-                  {REP_OPTIONS.map((r) => (
-                    <option key={r} value={r}>
-                      {r} 次
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+            {isDistanceMode ? (
+              <DistanceFields value={setDistance} onChange={onSetDistanceChange} elapsedSeconds={elapsedSeconds} />
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="text-sm font-semibold">重量</span>
+                  <select
+                    value={setWeight}
+                    onChange={(event) => onSetWeightChange(event.target.value)}
+                    className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
+                  >
+                    <option value="">0 kg</option>
+                    {WEIGHT_OPTIONS.map((w) => (
+                      <option key={w} value={w}>
+                        {w} kg
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-sm font-semibold">次数</span>
+                  <select
+                    value={setReps}
+                    onChange={(event) => onSetRepsChange(event.target.value)}
+                    className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
+                  >
+                    <option value="">0 次</option>
+                    {REP_OPTIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {r} 次
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -441,38 +458,42 @@ export function RecordView({
               <div className="rounded-[8px] bg-mist px-3 py-2 text-lg font-bold tabular-nums">{formatDuration(elapsedSeconds)}</div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block">
-                <span className="text-sm font-semibold">重量</span>
-                <select
-                  value={setWeight}
-                  onChange={(event) => onSetWeightChange(event.target.value)}
-                  className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
-                >
-                  <option value="">0 kg</option>
-                  {WEIGHT_OPTIONS.map((w) => (
-                    <option key={w} value={w}>
-                      {w} kg
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold">次数</span>
-                <select
-                  value={setReps}
-                  onChange={(event) => onSetRepsChange(event.target.value)}
-                  className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
-                >
-                  <option value="">0 次</option>
-                  {REP_OPTIONS.map((r) => (
-                    <option key={r} value={r}>
-                      {r} 次
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+            {isDistanceMode ? (
+              <DistanceFields value={setDistance} onChange={onSetDistanceChange} elapsedSeconds={elapsedSeconds} />
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="text-sm font-semibold">重量</span>
+                  <select
+                    value={setWeight}
+                    onChange={(event) => onSetWeightChange(event.target.value)}
+                    className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
+                  >
+                    <option value="">0 kg</option>
+                    {WEIGHT_OPTIONS.map((w) => (
+                      <option key={w} value={w}>
+                        {w} kg
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-sm font-semibold">次数</span>
+                  <select
+                    value={setReps}
+                    onChange={(event) => onSetRepsChange(event.target.value)}
+                    className="mt-2 h-12 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none focus:border-ocean"
+                  >
+                    <option value="">0 次</option>
+                    {REP_OPTIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {r} 次
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -532,6 +553,45 @@ function SummaryTile({ label, value }: { label: string; value: number }) {
   );
 }
 
+function DistanceFields({
+  value,
+  onChange,
+  elapsedSeconds,
+}: {
+  value: string;
+  onChange: (distance: string) => void;
+  elapsedSeconds: number;
+}) {
+  const distance = Number(value) || 0;
+  const speed = averageSpeedKmh(distance, elapsedSeconds);
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <label className="block">
+        <span className="text-sm font-semibold">距离</span>
+        <div className="mt-2 flex h-12 items-center gap-1 rounded-[8px] border border-line bg-mist px-3 focus-within:border-ocean">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={value}
+            onChange={(event) => onChange(event.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"))}
+            className="min-w-0 flex-1 bg-transparent text-base outline-none"
+            placeholder="0.0"
+            aria-label="距离（公里）"
+          />
+          <span className="text-sm text-ink/50">km</span>
+        </div>
+      </label>
+      <div>
+        <span className="text-sm font-semibold">均速</span>
+        <div className="mt-2 flex h-12 items-center justify-end rounded-[8px] bg-mist px-3 text-base font-semibold tabular-nums text-ink/60">
+          {speed > 0 ? `${speed.toFixed(1)} km/h` : "-- km/h"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DraftWorkoutSummary({
   workout,
   onDeleteSet,
@@ -539,29 +599,32 @@ function DraftWorkoutSummary({
 }: {
   workout: Workout;
   onDeleteSet: (exerciseId: string, setId: string) => void;
-  onUpdateSet: (exerciseId: string, setId: string, updates: { weight: number; reps: number; durationSeconds: number }) => void;
+  onUpdateSet: (exerciseId: string, setId: string, updates: { weight: number; reps: number; durationSeconds: number; distanceKm?: number }) => void;
 }) {
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [editWeightRaw, setEditWeightRaw] = useState("");
   const [editRepsRaw, setEditRepsRaw] = useState("");
   const [editDurationRaw, setEditDurationRaw] = useState("");
+  const [editDistanceRaw, setEditDistanceRaw] = useState("");
 
   const startEditing = (exerciseId: string, set: WorkoutSet) => {
     setEditingSetId(`${exerciseId}:${set.id}`);
     setEditWeightRaw(String(set.weight));
     setEditRepsRaw(String(set.reps));
     setEditDurationRaw(String(set.durationSeconds));
+    setEditDistanceRaw(String(set.distanceKm ?? ""));
   };
 
   const cancelEditing = () => {
     setEditingSetId(null);
   };
 
-  const saveEdit = (exerciseId: string, setId: string) => {
+  const saveEdit = (exerciseId: string, setId: string, distanceSet: boolean) => {
     onUpdateSet(exerciseId, setId, {
       weight: Math.max(0, Number(editWeightRaw) || 0),
       reps: Math.max(0, Number(editRepsRaw) || 0),
       durationSeconds: Math.max(0, Number(editDurationRaw) || 0),
+      distanceKm: distanceSet ? Math.max(0, Number(editDistanceRaw) || 0) : undefined,
     });
     setEditingSetId(null);
   };
@@ -586,6 +649,7 @@ function DraftWorkoutSummary({
             {exercise.sets.map((set, index) => {
               const setKey = `${exercise.id}:${set.id}`;
               const isEditing = editingSetId === setKey;
+              const distanceSet = isDistanceSet(set);
 
               return (
                 <Fragment key={set.id}>
@@ -593,40 +657,65 @@ function DraftWorkoutSummary({
                   {isEditing ? (
                     <div className="space-y-3 rounded-[8px] bg-mist px-3 py-3">
                       <p className="text-sm font-semibold text-ink/50">{index + 1}组 · 编辑中</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <label className="block">
-                          <span className="text-xs text-ink/50">重量</span>
-                          <select
-                            value={editWeightRaw}
-                            onChange={(e) => setEditWeightRaw(e.target.value)}
-                            className="mt-1 h-11 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none"
-                            aria-label="重量"
-                          >
-                            <option value="">0 kg</option>
-                            {WEIGHT_OPTIONS.map((w) => (
-                              <option key={w} value={w}>
-                                {w} kg
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="block">
-                          <span className="text-xs text-ink/50">次数</span>
-                          <select
-                            value={editRepsRaw}
-                            onChange={(e) => setEditRepsRaw(e.target.value)}
-                            className="mt-1 h-11 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none"
-                            aria-label="次数"
-                          >
-                            <option value="">0 次</option>
-                            {REP_OPTIONS.map((r) => (
-                              <option key={r} value={r}>
-                                {r} 次
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
+                      {distanceSet ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="block">
+                            <span className="text-xs text-ink/50">距离</span>
+                            <div className="mt-1 flex h-11 items-center gap-1 rounded-[8px] border border-line bg-mist px-3">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={editDistanceRaw}
+                                onChange={(e) => setEditDistanceRaw(e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"))}
+                                className="h-11 min-w-0 flex-1 bg-transparent text-base outline-none"
+                                aria-label="距离（公里）"
+                              />
+                              <span className="text-sm text-ink/50">km</span>
+                            </div>
+                          </label>
+                          <div>
+                            <span className="text-xs text-ink/50">均速</span>
+                            <div className="mt-1 flex h-11 items-center justify-end rounded-[8px] border border-line bg-mist px-3 text-sm font-semibold tabular-nums text-ink/60">
+                              {averageSpeedKmh(Number(editDistanceRaw) || 0, Math.max(0, Number(editDurationRaw) || 0)).toFixed(1)} km/h
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="block">
+                            <span className="text-xs text-ink/50">重量</span>
+                            <select
+                              value={editWeightRaw}
+                              onChange={(e) => setEditWeightRaw(e.target.value)}
+                              className="mt-1 h-11 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none"
+                              aria-label="重量"
+                            >
+                              <option value="">0 kg</option>
+                              {WEIGHT_OPTIONS.map((w) => (
+                                <option key={w} value={w}>
+                                  {w} kg
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block">
+                            <span className="text-xs text-ink/50">次数</span>
+                            <select
+                              value={editRepsRaw}
+                              onChange={(e) => setEditRepsRaw(e.target.value)}
+                              className="mt-1 h-11 w-full rounded-[8px] border border-line bg-mist px-3 text-base outline-none"
+                              aria-label="次数"
+                            >
+                              <option value="">0 次</option>
+                              {REP_OPTIONS.map((r) => (
+                                <option key={r} value={r}>
+                                  {r} 次
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      )}
                       <label className="block">
                         <span className="text-xs text-ink/50">持续时间（秒）</span>
                         <div className="mt-1 flex items-center gap-1 rounded-[8px] border border-line bg-mist px-3">
@@ -645,7 +734,7 @@ function DraftWorkoutSummary({
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() => saveEdit(exercise.id, set.id)}
+                          onClick={() => saveEdit(exercise.id, set.id, distanceSet)}
                           className="flex h-11 items-center justify-center gap-1 rounded-[8px] bg-ocean text-sm font-semibold text-white"
                           aria-label="确认修改"
                         >
@@ -666,7 +755,9 @@ function DraftWorkoutSummary({
                   ) : (
                     <div className="grid grid-cols-[1fr_auto_auto] items-center gap-1 rounded-[8px] bg-mist px-3 py-2">
                       <span className="text-sm font-semibold text-ink/60">
-                        {index + 1}组 · {set.weight}kg · {set.reps}次 · {formatDuration(set.durationSeconds)}
+                        {distanceSet
+                          ? `${index + 1}组 · ${formatDuration(set.durationSeconds)} · ${set.distanceKm}km · 均速${averageSpeedKmh(set.distanceKm!, set.durationSeconds).toFixed(1)}km/h`
+                          : `${index + 1}组 · ${set.weight}kg · ${set.reps}次 · ${formatDuration(set.durationSeconds)}`}
                       </span>
                       <button
                         type="button"
